@@ -7,6 +7,39 @@ import h5py
 import pfacets
 import numpy as np
 
+###################################
+########### SELECTION FILTERS
+###################################
+
+# TODO consider moving outside the class-- this would make sense considering
+#   we want to allow for external selection filters
+# TODO figure out how to configure the max lower bound, max upper bound;
+# TODO perhaps using partials (having these values passed as params than bound in this function)
+
+def std_threshold(self, **kwargs):
+  """Check if the std of any channel exceeds the maximum.
+
+  Returns
+  -------
+  bool
+    True if any channel std exceeds max, False otherwise.
+  """
+  return np.any(u_std > u_max_std)
+
+def max_u_in_bound(self, **kwargs):
+  """Check that the normalized maximum patch value falls within bounds.
+  
+  Returns
+  -------
+  bool
+    True if the maximum is within bounds, false otherwise.
+  """
+  return max_u_lower_bound < u_max < max_u_upper_bound
+
+###################################
+########### SAMPLER
+###################################
+
 class Sampler(object):
   """Provide random samples from a group of wrapped HDF5 files.
 
@@ -22,52 +55,54 @@ class Sampler(object):
   calls to `get_patches` draw from the same file until a certain number of
   patches have been drawn-- at this point, a new file is randomly selected from
   the available ones.
+
+  Parameters (init)
+  ----------
+  cache_size : int (optional)
+    Number of patches to load into memory at once.
+  resample_cache : int (optional)
+    Multiplier for the cache_size to determine the number of patches that
+    should be drawn before a new cache is generated.
+  hdf5_data_path : list of str (optional)
+    Last element must be the name of a dataset in the wrapped hdf5 file(s). Can
+    be preceded by group names.
+  time_dimension : int (optional)
+    Dimension of the data matrix corresponding to time.
+  patch_length : int (optional)
+    Number of time steps per patch
+  patch_filters : list of functions (optional)
+    Used to provide selection criteria for patches. Each filter is a function
+    that should take a 2x2 matrix as its sole argument and return a Boolean
+    value. A patch is evaluated against all patch filters and must evaluate to
+    False for each one in order to be selected.
+  channels : list or np.array (optional)
+    A list of indices into the channel dimension of the data matrix. Selects a
+    subset of channels for analysis. When omitted, all channels are used.
   """
 
-  ########### initialization
+  ########### INITIALIZATION
+
+  defaults = {
+      'cache_size': 1000,
+      'subsample': 1,
+      'resample_cache': 1,
+      'hdf5_data_path': ['data'],
+      'time_dimension': 1,
+      'patch_length': 128,
+      'patch_filters': [std_threshold, max_u_in_bound],
+      'channels': None
+      }
 
   def __init__(self, **kwargs):
-    """Configure, open hdf5 files, and load an initial cache.
-
-    Parameters
-    ----------
-    cache_size : int (optional)
-      Number of patches to load into memory at once.
-    resample_cache : int (optional)
-      Multiplier for the cache_size to determine the number of patches that
-      should be drawn before a new cache is generated.
-    hdf5_data_path : list of str (optional)
-      Last element must be the name of a dataset in the wrapped hdf5 file(s). Can
-      be preceded by group names.
-    time_dimension : int (optional)
-      Dimension of the data matrix corresponding to time.
-    patch_length : int (optional)
-      Number of time steps per patch
-    patch_filters : list of functions (optional)
-      Used to provide selection criteria for patches. Each filter is a function
-      that should take a 2x2 matrix as its sole argument and return a Boolean
-      value. A patch is evaluated against all patch filters and must evaluate to
-      False for each one in order to be selected.
-    channels : list or np.array (optional)
-      A list of indices into the channel dimension of the data matrix. Selects a
-      subset of channels for analysis. When omitted, all channels are used.
-    """
-    defaults = {
-        'cache_size': 1000,
-        'subsample': 1,
-        'resample_cache': 1,
-        'hdf5_data_path': ['data'],
-        'time_dimension': 1,
-        'patch_length': 128,
-        'patch_filters': map(lambda f: functools.partial(f, self), Sampler.patch_filters),
-        'channels': None
-        }
-    pfacets.set_attributes_from_dicts(self, defaults, kwargs)
+    """Configure, open hdf5 files, and load an initial cache."""
+    pfacets.set_attributes_from_dicts(self, Sampler.defaults, kwargs)
     self.superpatch_length = self.patch_length * self.subsample * self.cache_size
     self.channel_dimension = int(not self.time_dimension)
     self.open_files()
     self.update_configuration_from_files()
     self.remove_short_files()
+    sizes = np.array([ f['data'].shape[self.time_dimension] for f in self.files ])
+    self.relative_dataset_sizes = [ s / sizes.sum() for s in sizes ]
     self.patch_shape = (len(self.channels), self.patch_length)
     self.refresh_cache()
 
@@ -80,6 +115,7 @@ class Sampler(object):
     self.files = [ h5py.File(f, 'r') for f in filenames ]
 
   def update_configuration_from_files(self):
+    # TODO fix this docstring
     """Read metadata from hdf5 files and configure accordingly.
 
     Currently sets the `channels` parameter to all available channels, if a
@@ -89,7 +125,7 @@ class Sampler(object):
     structure metadata.
     """
     if self.channels is None:
-      num_channels = self.get_data_mat(self.files[0]).shape[self.channel_dimension]
+      num_channels = self.get_main_dataset(self.files[0]).shape[self.channel_dimension]
       self.channels = np.arange(num_channels)
 
   def remove_short_files(self):
@@ -99,10 +135,8 @@ class Sampler(object):
     `superpatch_length`, set to set as `patch_length` * `subsample` *
     `cache_size`.
     """
-    self.datasets = [ ds for ds in self.datasets
-        if self.get_data_mat(ds).shape[self.time_dimension] >= self.superpatch_length]
-    sizes = np.array([ ds['data'].shape[self.time_dimension] for ds in self.datasets ])
-    self.relative_dataset_sizes = [ s / sizes.sum() for s in sizes ]
+    self.files = [ f for f in self.files
+        if self.get_main_dataset(f).shape[self.time_dimension] >= self.superpatch_length]
 
   ########### sampling
 
@@ -122,7 +156,8 @@ class Sampler(object):
     """Randomly select `num` valid patches from the cached superpatch.
 
     A valid patch is one that returns true for all functions in
-    `self.patch_tests`.
+    `self.patch_tests`. If necessary, rearrange axes to enforce an order of
+    (patch, channel, time).
 
     Parameters
     ----------
@@ -132,9 +167,7 @@ class Sampler(object):
     Returns
     -------
     3d np.array
-      The first dimension is patch number; the other two dimensions are channel
-      and time. The ordering of these latter two dimensions depends on the
-      dataset.
+      The axes are ordered (patch number, channel, time).
     """
     if self.patches_retrieved > (self.cache_size * self.resample_cache):
       self.refresh_cache()
@@ -142,7 +175,9 @@ class Sampler(object):
     gen_func = functools.partial(pfacets.np.sample_array,
         self.superpatch, self.patch_length, axis=self.time_dimension)
     gen = iter(gen_func, None)
-    return np.array(pfacets.generate_filtered(gen, self.patch_filter, num))
+    patches = np.array(pfacets.generate_filtered(gen, self.patch_filter, num))
+    return np.ascontiguousarray(
+        np.transpose(patches, (0, self.channel_dimension+1, self.time_dimension+1)))
 
   def get_random_dataset(self):
     """Return the main dataset from a random hdf5 file.
@@ -155,8 +190,8 @@ class Sampler(object):
       An hdf5 dataset holding this file's main multichannel timeseries. Behaves
       like a 2d np.array.
     """
-    ds = self.datasets[pfacets.np.weighted_randint(self.relative_dataset_sizes)]
-    return self.get_main_dataset(ds)
+    f = self.files[pfacets.np.weighted_randint(self.relative_dataset_sizes)]
+    return self.get_main_dataset(f)
 
   def get_main_dataset(self, h5file):
     """Get the main matrix from an hdf5 file by descending `hdf5_data_path`.
@@ -180,8 +215,9 @@ class Sampler(object):
 
     Statistics are first calculated on the patch, which are fed to selection
     filters for analysis. Selection filters are Boolean-returning functions
-    that take keyword arguments `u_std`, `u_max_std`, and `u_max`. If any
-    selection filter returns `True`, a patch is rejected.
+    that take a patch as their first argument and keyword arguments `u_std`,
+    `u_max_std`, and `u_max`. If any selection filter returns `True`, a patch
+    is rejected.
 
     Parameters
     ----------
@@ -198,15 +234,5 @@ class Sampler(object):
     u_std = u.std(axis=1)
     max_u = np.max(np.abs(u))
     kwargs = {'u': u, 'u_std': u_std, 'max_u': max_u}
-    tests = map(lambda f: f(patch), self.patch_filters)
+    tests = map(lambda f: f(patch, **kwargs), self.patch_filters)
     return not (True in tests)
-
-  ########### selection filters
-
-  def std_threshold(self, **kwargs):
-    return np.any(u_std > self.max_std)
-
-  def max_u_in_bound(self, **kwargs):
-    return self.max_u_lower_bound < u_max < self.max_u_upper_bound
-
-  patch_filters = [std_threshold, max_u_in_bound]

@@ -10,6 +10,9 @@ Note:
 1. The kernels are convolution kernels.
 """
 
+# TODO needs docstrings for almost all functions
+# TODO needs implementation of basis centering
+
 import functools
 import os
 import time
@@ -19,52 +22,96 @@ import pfacets
 
 import mpi
 import sparco
+import sparco.sparseqn
 import sparco.sptools as sptools
+
+###################################
+########### UTILITY
+###################################
+
+def config_key(config, sn=None):
+  config = (config.__dict if isinstance(Spikenet, config)
+      else pfacets.merge(Spikenet.defaults, config))
+  tup = (config['num_iterations'],
+      config['inference_settings']['lam'],
+      config['inference_settings']['maxit'])
+  return "niter_{0}_lam_{1}_maxit_{2}".format(*tup)
 
 ###################################
 ########### MPI NODE
 ###################################
 
+# TODO finish the Spikenet docstring with reference to inference/learning specs
+
 class Spikenet(object):
+  """Carry out convolutional sparse-coding on an MPI node.
+
+  This class implements convolutional sparse coding on any MPI node.
+  Configuration is implemented as keyword arguments to the `__init__` method.
+  Execution can be terminated either after a fixed time (using
+  `run_time_limit`) or number of iterations (using `num_iterations`). The code
+  implementing inference and learning is provided by a function and class,
+  respectively.
+
+  Parameters
+  ----------
+  sampler : Sampler or other class with `get_patches`
+    The data provider. Must respond to `get_patches` with a 3d numpy array.
+  patches_per_iteration : int (optional)
+    Number of patches to process in a single iteration.
+  num_iterations : int (optional)
+    Total number of iterations to carry out before terminating.
+  run_time_limit : number (optional)
+    Execution will terminate if this amount of time is exceeded.
+  dictionary_size : int (optional)
+    The number of basis functions to generate.
+  convolution_time_length : int (optional)
+    The length of each basis function in the time dimension.
+  phi : 3d array (optional)
+    A starting set of basis functions.
+  inference_function : function
+    A function that satisfies the inference function specification.
+  inference_settings : dict
+    Keyword arguments for inference_function.
+  eta : float
+    A starting value for the basis adjustment constant.
+  learner_class : class
+    A class implementing the learner class specification.
+  eta_up_factor : float
+    Factor by which eta will be adjusted if basis angle is below target.
+  eta_down_factor : float
+    Factor by which eta will be adjusted if basis angle is above target.
+  target_angle : number
+    Target angle between successive states of phi 
+  max_angle : number
+    Maximum tolerable angle between successive states of phi. Angles above
+    this will cause the rejection of the most recently calculated phi.
+  update_coefficient_statistics_interval : int
+    The number of iterations between updates to coefficient statistics
+    (l0/l1/l2 norm, variance).
+  basis_centering_interval : int or None
+    The number of iterations between centerings of the basis.
+  basis_centering_max_shift : number
+    The maximum shift for each basis function during centering.
   """
-  Settings:
-    db: DB. Data source.
-    phi: Numpy Array. Must be CxNxP. The initial basis matrix.
-    disp: Integer. Iteration interval at which to write basis
-    Dimensions:
-      C:  Integer. Number channels
-      N:  Integer. Number kernels
-      P:  Integer. Time points in convolution kernel
-      T:  Integer. Time points in raw data (T >> P)
-    Inference and learning:
-      niter: Integer. Number of iterations for learning
-      bs: Integer. Batch size to be divided among procs.
-      inference_function: Function.
-      inference_settings: Dict. Kwargs for inference_function.
-      learner_class: Class. Must implement step(phi, A, X)
-      learner_settings: Keyword arguments for learner class constructor.
-    Output:
-      logger_active:  Boolean. Enable logging.
-      log_path: String. Path to log file.
-      logger_settings: Keyword arguments for logger initializer.
-      echo:  echo stdout to console
-      movie:  use movie basis writer (for natural scenes)
-  """
+  # todos for above docstring
+  # TODO dimension specification for `phi`
+  # TODO must provide reference to specification for inference function
+  # TODO must provide reference to specification for learning function
+  # TODO better name for eta than adjustment constant
+  # TODO eta_up/down_factor and other params are is specific to angle chasing learner
 
   ########### INITIALIZATION
 
-  def __init__(self, **kwargs):
-    """Set and validate configuration, initialize output classes."""
-    home = os.path.expanduser('~')
-    defaults = {
+  defaults = {
       'sampler': None,
-      'batch_size': 10,
+      'patches_per_iteration': 10,
       'num_iterations': 100,
       'run_time_limit': float("inf"),
       'dictionary_size': 100,
       'convolution_time_length': 64,
       'phi': None,
-      'inference_function': sparco.qn.sparseqn.sparseqn_batch,
+      'inference_function': sparco.sparseqn.sparseqn_batch,
       'inference_settings': {
         'lam': 0,
         'maxit': 15,
@@ -84,7 +131,15 @@ class Spikenet(object):
       'basis_centering_max_shift': None,
       'basis_method': 1,  # TODO this is a temporary measure
       }
-    pfacets.set_attributes_from_dicts(self, defaults, kwargs)
+
+  def __init__(self, **kwargs):
+    """Configure the Spikenet."""
+
+    pfacets.set_attributes_from_dicts(self, Spikenet.defaults, kwargs)
+    from IPython import embed; embed()
+
+    self.sampler = (self.sampler if isinstance(self.sampler, sparco.Sampler)
+        else sparco.Sampler(**self.sampler))
 
     # TODO temp for profiling; second line is especially hacky
     self.learn_basis = getattr(self, "learn_basis{0}".format(self.basis_method))
@@ -93,7 +148,7 @@ class Spikenet(object):
     self.create_root_buffers = getattr(self,
           "create_root_buffers{0}".format(self.basis_method))
 
-    self.patches_per_node = self.batch_size / mpi.procs
+    self.patches_per_node = self.patches_per_iteration / mpi.procs
     pfacets.mixin(self, self.learner_class)
     self.a_variance_cumulative = np.zeros(self.dictionary_size)
     self.run_time =0
@@ -109,6 +164,11 @@ class Spikenet(object):
     self.initialize_phi(C,N,P)
 
   def create_node_buffers(self, buffer_dimensions):
+    """Allocate numpy arrays for storing intermediate results of computations.
+
+    This preallocation is necessary for use of mpi `Scatter`, `Gather`, and
+    `Broadcast`.
+    """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
       nodebufs[name] = np.zeros((self.patches_per_node,) + dims)
@@ -209,15 +269,30 @@ class Spikenet(object):
 ###################################
 
 class RootSpikenet(Spikenet):
+  """Extends `Spikenet` with special code to be run only on the MPI root.
+
+  The special functionality includes the allocations of large memory buffers
+  for gathering the parallel results, the averaging of parallel results, and
+  the updating of eta and phi.
+  """
 
   def __init__(self, **kwargs):
+    """Configure the RootSpikenet.
+
+    Configuration differs slightly from what is performed on a node due to the
+    override of certain methods called in `Spikenet#__init__`.
+
+    Parameters
+    ----------
+    see `Spikenet#__init__`
+    """
     Spikenet.__init__(self, **kwargs)
 
   def create_root_buffers1(self, buffer_dimensions):
     rootbufs, rootbufs_mean = {}, {}
     proc_based = list(set(buffer_dimensions.keys()) - set(['x'])) # TODO hack
     for name,dims in buffer_dimensions.items():
-      first_dim = mpi.procs if (name in proc_based) else self.batch_size
+      first_dim = mpi.procs if (name in proc_based) else self.patches_per_iteration
       rootbufs[name] = np.zeros((first_dim,) + dims)
       rootbufs_mean[name] = np.zeros(dims)
     self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
@@ -226,7 +301,7 @@ class RootSpikenet(Spikenet):
     rootbufs, rootbufs_mean = {}, {}
     proc_based = ['a_l0_norm', 'a_l1_norm', 'a_l2_norm', 'a_variance']
     for name,dims in buffer_dimensions.items():
-      first_dim = mpi.procs if (name in proc_based) else self.batch_size
+      first_dim = mpi.procs if (name in proc_based) else self.patches_per_iteration
       rootbufs[name] = np.zeros((first_dim,) + dims)
       rootbufs_mean[name] = np.zeros(dims)
     self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
@@ -241,7 +316,7 @@ class RootSpikenet(Spikenet):
     super(RootSpikenet, self).iteration()
 
   def load_patches(self):
-    self.rootbufs.x = self.sampler.get_patches(self.batch_size)
+    self.rootbufs.x = self.sampler.get_patches(self.patches_per_iteration)
 
   def infer_coefficients(self):
     super(RootSpikenet, self).infer_coefficients()

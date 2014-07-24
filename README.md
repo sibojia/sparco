@@ -9,7 +9,7 @@ One of the libraries used by this code must be linked against BLAS. If your `cbl
     git clone --recursive https://github.com/ursk/sparco
     export BLASPATH=/path/to/my/dir/containing/cblas.h  # optional
     cd sparco/lib/quasinewton
-    setup.py build_ext --in-place
+    setup.py build_ext --inplace
 
 The `--recursive` option is used because dependency packages `pfacets`, `traceutil`, and `qn` have been included as git submodules. This is because this code may be run on systems where the user is not able to install packages.
 
@@ -17,21 +17,21 @@ The `--recursive` option is used because dependency packages `pfacets`, `traceut
 
 The codebase has been designed to support the calling of CSC in multiple contexts, allowing the ability to include CSC as part of a larger data-processing pipeline. However, a default entry point for the code is provided by the `csc` script. This script allows convolutional sparse coding to be carried out (with flexible configuration) on a single dataset.
 
-The `csc` script builds a configuration dictionary. This dictionary is built from two sources:
+The `csc.py` script builds a configuration dictionary. This dictionary is built from two sources:
 
 - command line options
 - a local configuration file, which must either reside in the user's home directory or have its location passed as a command line option
 
-Given the presence of this script on the path, a call to `csc` might look like:
+Given the presence of this script on the path, a call to `csc.py` might look like:
 
-    ❯ csc -i /path/to/dir/with/my/h5/files -o /path/to/output/directory \
+    ❯ csc.py -i /path/to/dir/with/my/h5/files -o /path/to/output/directory \
     -C /path/to/config/file
 
 The input path (`-i`), is expected to be a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. Details on the format of the config file pointed to by `-C` can be found in [](#configuration-file-structure). `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
 
 Assuming `mpirun` is in `$PATH`, to run the code over mpi with, say, 4 processes:
 
-    ❯ mpirun -n4 csc command-line-options...
+    ❯ mpirun -n4 csc.py command-line-options...
 
 ## Configuration
 
@@ -41,12 +41,12 @@ While parameters are specified differently depending on whether the command-line
 
 A thorough understanding of how to configure the code is best gained by reading two sources:
 
-- the output of `csc --help`, which provides a description of all available command line options. (The same information is available in the `ArgParse` specification of the `csc` source)
+- the output of `csc.py --help`, which provides a description of all available command line options. (The same information is available in the `ArgParse` specification of the `csc.py` source)
 - the sample configuration file `sample_config.py`. For convenience, this file contains specifications for all possible parameters as well as their corresponding documentation. In practice, it is not necessary to specify so many parameters for most use cases, since the defaults are sufficient.
 
 ### Required Parameters
 
-There are some parameters for which no reasonable defaults can be defined. Thus, the following parameters *must* be provided to `csc` through either command line options or the configuration file:
+There are some parameters for which no reasonable defaults can be defined. Thus, the following parameters *must* be provided to `csc.py` through either command line options or the configuration file:
 
 @TD required config params
 
@@ -73,7 +73,7 @@ The major steps in the CSC algorithm are "learning" (given a dataset, generation
 
 ### Data-Loading
 
-The core accesses data by calling the `get_patches` method of a "sampler" object. In principle, any object that responds to `get_patches` with a 3d array can be used in place of an instance of the included `Sampler` class.
+The core accesses data by calling the `get_patches` method of a "sampler" object. In principle, any object that responds to `get_patches` with a 3d array can be used in place of an instance of the included `Sampler` class. The 3d array should have an axis order of (patch number, channel, time).
 
 `Sampler` wraps a single HDF5 file or directory containing HDF5 files. It caches a random subset of the wrapped (2d) data in memory; `get_patches` returns a set of random fragments of this cache in the form of a 3d array. The cached subset is refreshed once a configured number of patches have been drawn from it.
 

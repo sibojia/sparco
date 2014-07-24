@@ -3,7 +3,9 @@ import sparco.sampler
 
 class Tracer(traceutil.tracer.Tracer):
 
-  # custom decorators
+  ###################################
+  ########### CUSTOM DECORATORS
+  ###################################
 
   def t_patch_test(tracer, orig, self, *args, **kwargs):
     res = orig(self, *args, **kwargs)

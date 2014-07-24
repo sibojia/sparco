@@ -13,6 +13,8 @@ import scipy.signal as signal
 
 import sparco.mpi as mpi
 
+# TODO docstrings for all methods
+
 ###################################
 ########### OBJECTIVE
 ###################################
@@ -38,6 +40,7 @@ def compute_E(dx):
 def compute_dphi(dx, a):
   t = dx.shape[1]; p = a.shape[1] - t + 1
   return np.dstack(tuple(np.dot(dx, a[:,i:i+t].T) for i in range(p)))
+  # return np.array(tuple(np.dot(dx, a[:,i:i+t].T) for i in range(p)))
 
 def compute_angle(phi1, phi2):
   dot = np.sum(phi1*phi2) / (np.linalg.norm(phi1) * np.linalg.norm(phi2))
