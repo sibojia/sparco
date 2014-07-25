@@ -2,6 +2,7 @@ import logging
 import os
 import pfacets
 import traceutil.tracer
+import sparco.mpi as mpi
 import sparco.trace.sp
 
 # intended for RootSpikenet
