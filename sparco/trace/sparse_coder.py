@@ -38,7 +38,7 @@ class Tracer(traceutil.tracer.Tracer):
 
   def t_create_spikenet(tracer, orig, self, *args, **kwargs):
     sn = orig(self, *args, **kwargs)
-    key = self.config_key_function(sn)
+    key = tracer.config_key_function(sn)
     logging.info('Round {0}: {1}'.format(self.t, key))
     sn_output_path = os.path.join(tracer.output_path, '{0}_{1}'.format(self.t, key))
     traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,

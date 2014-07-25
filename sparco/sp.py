@@ -30,7 +30,7 @@ import sparco.sptools as sptools
 ###################################
 
 def config_key(config, sn=None):
-  config = (config.__dict if isinstance(Spikenet, config)
+  config = (config.__dict__ if isinstance(config, Spikenet)
       else pfacets.merge(Spikenet.defaults, config))
   tup = (config['num_iterations'],
       config['inference_settings']['lam'],
@@ -105,7 +105,7 @@ class Spikenet(object):
 
   defaults = {
       'sampler': None,
-      'patches_per_iteration': 10,
+      'patches_per_iteration': mpi.procs,
       'num_iterations': 100,
       'run_time_limit': float("inf"),
       'dictionary_size': 100,
@@ -136,7 +136,6 @@ class Spikenet(object):
     """Configure the Spikenet."""
 
     pfacets.set_attributes_from_dicts(self, Spikenet.defaults, kwargs)
-    from IPython import embed; embed()
 
     self.sampler = (self.sampler if isinstance(self.sampler, sparco.Sampler)
         else sparco.Sampler(**self.sampler))
@@ -168,6 +167,11 @@ class Spikenet(object):
 
     This preallocation is necessary for use of mpi `Scatter`, `Gather`, and
     `Broadcast`.
+
+    Parameters
+    ----------
+    buffer_dimensions : dict
+      A buffer will be created for each 
     """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
@@ -185,7 +189,8 @@ class Spikenet(object):
   create_root_buffers2 = create_root_buffers1
 
   def initialize_phi(self, *dims):
-    self.phi = np.empty(basis_dims) if self.phi is None else self.phi
+    """Allocate buffer for phi and broadcast from the root."""
+    self.phi = np.empty(dims) if self.phi is None else self.phi
     mpi.bcast(self.phi)
 
   ########### LEARNING
@@ -200,6 +205,14 @@ class Spikenet(object):
 
   # TODO temp until decorator solution
   def within_time_limit(self):
+    """Check if net has been running for longer than configured limit.
+
+    Returns
+    -------
+    bool
+      True if run time is greater than `run_time_limit`
+    """
+      
     now = time.time()
     self.run_time += now - self.last_time
     self.last_time = now

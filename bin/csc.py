@@ -7,17 +7,15 @@ import logging
 import time
 import sys
 
-import pfacets
-import traceutil
-
 # TODO fix this-- the issue is that tokyo is not on the load path
-sys.path.append(
+sys.path.insert(0,
     os.path.normpath(os.path.join(os.path.dirname(__file__),  '..')))
 for x in ['pfacets', 'traceutil', 'quasinewton']:
-  sys.path.append(os.path.normpath(os.path.join(os.path.dirname(__file__), '..',
+  sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__),
     '..', 'lib', x)))
 
-from IPython import embed; embed()
+import pfacets
+import traceutil
 
 import sparco
 import sparco.mpi as mpi
@@ -189,8 +187,11 @@ if isinstance(config['trace']['log']['level'], str):
   config['trace']['log']['level'] = getattr(logging,
       config['trace']['log']['level'].upper())
 
+if len(config['nets']) == 0:
+  config['nets'].append({})
+
 for c in config['nets']:
-  c['sampler'] = pfacets.merge(c['sampler'], config['sampler'])
+  c['sampler'] = pfacets.merge(c.get('sampler', {}), config['sampler'])
 
 ###################################
 ########### RUN
@@ -215,13 +216,13 @@ if config['mode'] == 'ladder':
 elif config['mode'] == 'batch':
   for c in config['nets']:
     if mpi.rank == mpi.root:
-      sn = sparco.sp.RootSpikenet(**config)
+      sn = sparco.sp.RootSpikenet(**c)
       if config['trace']['enable']:
         output_path = os.path.join(config['trace']['inner_output_directory'],
             config['trace']['config_key_function'](sn))
         traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,
             target=sn, output_path=output_path, **config['trace']['RootSpikenet'])
     else:
-      sn = sparco.sp.Spikenet(**config)
+      sn = sparco.sp.Spikenet(**c)
     sn.run()
 

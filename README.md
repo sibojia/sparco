@@ -6,64 +6,53 @@ This code depends on `numpy`, `h5py`, and `mpi4py`. The command-line steps below
 
 One of the libraries used by this code must be linked against BLAS. If your `cblas.h` file is located in a nonstandard location, then you must set the environment variable BLASPATH to the directory containing `cblas.h` before installation.
 
-    git clone --recursive https://github.com/ursk/sparco
+    git clone --recursive https://github.com/smackesey/sparco
     export BLASPATH=/path/to/my/dir/containing/cblas.h  # optional
     cd sparco/lib/quasinewton
     setup.py build_ext --inplace
 
-The `--recursive` option is used because dependency packages `pfacets`, `traceutil`, and `qn` have been included as git submodules. This is because this code may be run on systems where the user is not able to install packages.
+The `--recursive` option is used because dependency packages `pfacets`, `traceutil`, and `quasinewton` have been included as git submodules. This is because this code may be run on systems where the user is not able to install packages globally.
 
 ## Usage
 
-The codebase has been designed to support the calling of CSC in multiple contexts, allowing the ability to include CSC as part of a larger data-processing pipeline. However, a default entry point for the code is provided by the `csc` script. This script allows convolutional sparse coding to be carried out (with flexible configuration) on a single dataset.
-
-The `csc.py` script builds a configuration dictionary. This dictionary is built from two sources:
-
-- command line options
-- a local configuration file, which must either reside in the user's home directory or have its location passed as a command line option
+The codebase has been designed to support the calling of CSC in multiple contexts, allowing the ability to include CSC as part of a larger data-processing pipeline. However, a default entry point for the code is provided by the `csc` script. This script allows convolutional sparse coding to be carried out (with flexible configuration) on a single dataset. The dataset is provided as one or more h5 files, all storing a main data matrix at the same location. The script is configured using command line options and/or a local configuration file.
 
 Given the presence of this script on the path, a call to `csc.py` might look like:
 
     ❯ csc.py -i /path/to/dir/with/my/h5/files -o /path/to/output/directory \
     -C /path/to/config/file
 
-The input path (`-i`), is expected to be a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. Details on the format of the config file pointed to by `-C` can be found in [](#configuration-file-structure). `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
+The input path (`-i`), is expected to be a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. `-C` provides the path to a configuration file. Details on its format can be found below. `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
 
 Assuming `mpirun` is in `$PATH`, to run the code over mpi with, say, 4 processes:
 
-    ❯ mpirun -n4 csc.py command-line-options...
+    ❯ mpirun -n4 csc.py options...
 
 ## Configuration
 
-@TD are defaults for ALL params rly specified in the docstrings
-
-While parameters are specified differently depending on whether the command-line or a configuration file is used, ultimately they are mapped to keyword arguments of the `__init__` method of a class. Thus the default values and documentation for all parameters are specified in the source code in the `__init__` method and corresponding docstring for each class. All user-specified configuration overrides defaults, with command-line options overriding the configuration file.
+All configuration parameters may be specified using a local configuration file. Some may also be specified via command line options. Ultimately, most parameters are mapped to keyword arguments of the `__init__` method of a class. The default values and documentation for such parameters can be found in the source at the top of the class. Other parameters are specific to the `csc.py` script and thus have their documentation there.  All user-specified configuration overrides defaults, with command-line options overriding the configuration file.
 
 A thorough understanding of how to configure the code is best gained by reading two sources:
 
 - the output of `csc.py --help`, which provides a description of all available command line options. (The same information is available in the `ArgParse` specification of the `csc.py` source)
 - the sample configuration file `sample_config.py`. For convenience, this file contains specifications for all possible parameters as well as their corresponding documentation. In practice, it is not necessary to specify so many parameters for most use cases, since the defaults are sufficient.
 
-### Required Parameters
+### Minimal Possible Configuration
 
-There are some parameters for which no reasonable defaults can be defined. Thus, the following parameters *must* be provided to `csc.py` through either command line options or the configuration file:
-
-@TD required config params
+Virtually all parameters have default values that will enable the code to work. The minimal possible configuration specifies an `input_path` to the directory containing the data. This may be done on the command line or in a configuration file.
 
 ### Configuration File Structure
 
-A configuration file is just a python module that defines a dictionary `config`. This dictionary should hold other dictionaries which contain keyword arguments for the `__init__` methods of the various classes described above. The structure of `config` is best understood by looking at the sample configuration file provided as sample_config.py, but a brief description is provided here. `config` should contain the keys:
+A configuration file is just a python module that defines a dictionary `config`. The structure of `config` is best understood by looking at the sample configuration file provided as sample_config.py, but a brief description is provided here. `config` may contain the keys:
 
-@TD review to make sure these are the only keys
-- `'sampler'`: dict of keyword arguments for `sparco.sampler.Sampler#__init__`
-- `'nets'`: an array of dicts, each having keyword arguments for `sparco.sp.Spikenet#__init__`
-- `'trace'`: a dict that may contain keys:
-    - `'RootSpikenet'`: dict of keyword arguments for `sparco.trace.sp.RootSpikenet#__init__`
-    - `SparseCoder`: dict of keyword arguments for `sparco.trace.sparse_coder.SparseCoder#__init__`
+- `mode` : `batch` or `ladder`
+- `'sampler'`: dict of keyword arguments for `sparco.sampler.Sampler.__init__`. These will be applied to the samplers for *all* Spikenets; configuration for specific instances should be provided in the `sampler` key of the `Spikenet` configuration (in `nets`).
+- `'nets'`: an array of dicts, each having keyword arguments for `sparco.sp.Spikenet.__init__`
+- `'trace'`: a dict containing configuration for algorithm output and logging
 
 ## Architecture
 
-This codebase is modular. The top-level division of code is between *core*, *data-loading*, and *output* classes.
+The top-level division of code is between *core*, *data-loading*, and *output* classes.
 
 ### Core
 

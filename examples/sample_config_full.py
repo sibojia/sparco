@@ -130,13 +130,35 @@ trace = {
   #   the lists are overwritten rather than appended to.
 
   # Keys for RootSpikenet:
+  # create_plots : bool
+  #   Generate a grid of grids in png format
   # snapshot_interval : int
   #   Number of iterations between successive writings of basis snapshots to disk.
+  # plot_settings : dict
+  #   Contains settings for plots. There are two keys: `image`, which consists
+  #   of keyword arguments for `matplotlib.pyplot.imshow`, and `axis`, which
+  #   consists of keyword arguments for `matplotlib.pyplot.subplot`. All
+  #   parameters in both dictionaries are applied to each subplot in the output
+  #   grid.
 
   'RootSpikenet': {
     # 'wrappermerge': True,
     # 'wrappers': {},
-    # 'snapshot_interval': 100
+    # 'create_plots': True,
+    # 'snapshot_interval': 100,
+    # 'plot_settings': {
+    #   'image': {
+    #     'cmap': plt.cm.jet,
+    #     'interpolation': 'nearest',
+    #     'aspect': 'equal',
+    #     'origin': 'upper',
+    #     },
+    #   'axis': {
+    #     'xticks': [],
+    #     'yticks': [],
+    #     'frame_on': False
+    #     }
+    #   }
   },
 
   # Keys for SparseCoder:

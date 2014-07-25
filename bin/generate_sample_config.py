@@ -8,8 +8,9 @@ import sys
 import jinja2
 
 root = os.path.normpath(os.path.join(os.path.dirname(__file__),  '..'))
-sys.path.append(root)
-sys.path.append(os.path.join(root, 'lib', 'traceutil'))
+sys.path.insert(0, root)
+sys.path.insert(0, os.path.join(root, 'lib', 'traceutil'))
+sys.path.insert(0, os.path.join(root, 'lib', 'pfacets'))
 
 import sparco
 import sparco.trace
@@ -221,6 +222,6 @@ config = {
 }
 """.strip()
 
-with open(os.path.join(root, 'sample_config.py'), 'w') as f:
+with open(os.path.join(root, 'examples', 'sample_config_full.py'), 'w') as f:
   output = jinja2.Template(template).render(locals())
   f.write(output)

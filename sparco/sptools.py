@@ -115,69 +115,6 @@ def smooth(phi):
     phi[:,n] = scipy.signal.lfilter(b, a, phi[:,n], axis=1)
 
 ###################################
-########### PLOTTING
-###################################
-# TODO clean this up and just use matplotlib's subplot functionality
-
-def grid_image(mat, nrows=None, ncols=None, grid_line_width=3, params=None):
-  nrows, ncols = compute_grid_dimensions(mat.shape[1], nrows, ncols)
-  cell_height, cell_width = mat.shape[0], mat.shape[2]
-  img_height = cell_height * ncols + grid_line_width * (ncols+1)
-  img_width = cell_width * nrows + grid_line_width * (nrows+1)
-  img = np.zeros((img_height, img_width))
-
-  phi, buf, I = mat, grid_line_width, img
-  m,n,o = phi.shape
-  l0norm, l1norm, variance, l2norm = params
-  for i in range(phi.shape[0]):
-    # import ipdb
-    # flip along channel axis (deep sites at bottom)
-    patch = phi[i,::-1]
-    sx = (o + buf) * (i % ncols) + buf - 1
-    sy = (n + buf) * (i / ncols) + buf - 1
-    prange = np.abs(patch).max()
-    # rescale patch to [0, 1]
-    if prange > .00001: patch = .5 + .5*patch/prange
-    else: patch += .5
-    I[sy:sy+n, sx:sx+o] = patch
-    # add borders
-    I[sy-1, sx:sx + max(1,np.round(l1norm[i]*o))] = .6   # top
-    I[sy:sy + max(1,np.round(l0norm[i]*n)), sx-1] = .6   # left
-    I[sy+n, sx:sx + max(1,np.round(variance[i]*o))] = .6   # bottom
-    if l2norm is not None:
-      I[sy:sy+max(1,np.round(l2norm[i]*n)), sx+o] = .6      
-  return I
-
-# def grid_plot(mat, nrows=None, ncols=None, grid_line_width=3, params=None,
-#               cmap=plt.cm.jet, figno=1, filename=None, title=None):
-#   image = grid_image(mat, nrows, ncols, grid_line_width, params)
-#   fig = plt.figure(figno)
-#   plt.clf()
-#   plt.imshow(image, cmap=cmap, interpolation='nearest', aspect='equal',
-#              origin='upper',vmax=1, vmin=0)
-#   if title:
-#     plt.title(title)
-#   plt.subplots_adjust(left=0.02, bottom=0.02, right=0.98, top=0.95,
-#             wspace=0.02, hspace=0.02)
-#   plt.draw()
-#   # save figure  
-#   if filename:
-#     dpi = max(150, np.int(2*I.shape[0]/fig.get_figheight()))
-#     plt.savefig(filename, dpi=dpi)
-
-
-def compute_grid_dimensions(min_cells, nrows=None, ncols=None):
-  if nrows == None and ncols == None:
-    root = np.sqrt(min_cells)
-    return (np.ceil(root), root)
-  elif nrows == None:
-    return np.ceil(min_cells / ncols), ncols
-  elif ncols == None:
-    return nrows, np.ceil(min_cells / nrows)
-  else:
-    return nrows, ncols
-
-###################################
 ########### OTHER
 ###################################
 
@@ -194,6 +131,7 @@ def compute_grid_dimensions(min_cells, nrows=None, ncols=None):
 ########### DEPRECATED
 ###################################
 
+# TODO remove once it has been taken from the experimental learners
 def attributesFromDict(d):
     "Automatically initialize instance variables, Python Cookbook 6.18"
     self = d.pop('self')
