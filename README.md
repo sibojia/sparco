@@ -9,7 +9,7 @@ One of the libraries used by this code must be linked against BLAS. If your `cbl
     git clone --recursive https://github.com/smackesey/sparco
     export BLASPATH=/path/to/my/dir/containing/cblas.h  # optional
     cd sparco/lib/quasinewton
-    setup.py build_ext --inplace
+    python setup.py build_ext --inplace
 
 The `--recursive` option is used because dependency packages `pfacets`, `traceutil`, and `quasinewton` have been included as git submodules. This is because this code may be run on systems where the user is not able to install packages globally.
 
