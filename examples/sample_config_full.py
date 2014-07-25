@@ -253,7 +253,7 @@ trace = {
 
 template = {
   # 'sampler': None,
-  # 'patches_per_iteration': 10,
+  # 'patches_per_iteration': mpi.procs,
   # 'num_iterations': 100,
   # 'run_time_limit': float("inf"),
   # 'dictionary_size': 100,

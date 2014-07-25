@@ -49,6 +49,7 @@ arg_parser.add_argument('--no-output', action='store_false', dest='output',
     help='do not write any output')
 arg_parser.add_argument('-o', '--output-root',
     help='path to directory containing output files')
+arg_parser.add_argument('--no-plots', action='store_false', dest='plots')
 arg_parser.add_argument('-s', '--snapshot-interval', default=100, type=int,
     help='number of iterations between basis snapshots')
 arg_parser.add_argument('-t', '--time-dimension', type=int,
@@ -93,8 +94,8 @@ def parse_args():
 #   is analogous to root/ladder_or_batch_dir/spikenet1,
 #   root/ladder_or_batch_dir/spikenet2, etc. The difference between modes is
 #   that 'ladder' mode uses the final basis and eta values of each Spikenet as
-#   used as the initial values for the next Spikenet, while 'batch' mode
-#   initializes phi and eta independently for each `Spikenet`.
+#   the initial values for the next Spikenet, while 'batch' mode initializes
+#   phi and eta independently for each `Spikenet`.
 # sampler : dict
 #   Keyword arguments for initialization of a `Sampler` instance. Configuration
 #   provided here will be used globally-- i.e. it will be merged into the
@@ -163,6 +164,7 @@ cli_config = pfacets.map_object_to_dict(args, {
     'log_path': ['trace', 'log', 'filename'],
     'output': ['trace', 'enable'],
     'output_root': ['trace', 'output_root'],
+    'plots': ['trace', 'RootSpikenet', 'create_plots'],
     'snapshot_interval': ['trace', 'RootSpikenet', 'snapshot_interval'],
     })
 
