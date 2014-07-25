@@ -38,11 +38,12 @@ class Tracer(traceutil.tracer.Tracer):
 
   def t_create_spikenet(tracer, orig, self, *args, **kwargs):
     sn = orig(self, *args, **kwargs)
-    key = tracer.config_key_function(sn)
-    logging.info('Round {0}: {1}'.format(self.t, key))
-    sn_output_path = os.path.join(tracer.output_path, '{0}_{1}'.format(self.t, key))
-    traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,
-        output_path=sn_output_path, target=sn, **tracer.RootSpikenet_config)
+    if mpi.rank == mpi.root:
+      key = tracer.config_key_function(sn)
+      logging.info('Round {0}: {1}'.format(self.t, key))
+      sn_output_path = os.path.join(tracer.output_path, '{0}_{1}'.format(self.t, key))
+      traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,
+          output_path=sn_output_path, target=sn, **tracer.RootSpikenet_config)
     return sn
 
   wrappers = {
