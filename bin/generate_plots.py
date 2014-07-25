@@ -4,6 +4,7 @@
 
 import argparse
 import glob
+import fnmatch
 import logging
 import os
 import sys
@@ -16,6 +17,7 @@ for x in ['pfacets', 'traceutil', 'quasinewton']:
   sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__),
     '..', 'lib', x)))
 
+import pfacets
 import pfacets.matplotlib
 import sparco.trace.sp
 
@@ -32,7 +34,7 @@ local_config = pfacets.load_local_module(path=args.local_config_path,
 plot_settings = pfacets.merge(sparco.trace.sp.Tracer.defaults['plot_settings'],
     pfacets.get_recursive(local_config, {}, 'trace', 'RootSpikenet', 'plot_settings'))
 
-h5_paths = glob.glob(os.path.join(args.input_directory, '**', '*.h5'))
+h5_paths = pfacets.glob_recursive(args.input_directory, '*.h5')
 for p in h5_paths:
   print 'plotting {0}'.format(p)
   plot_path = p.replace('.h5', '.png')
