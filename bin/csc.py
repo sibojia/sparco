@@ -148,6 +148,7 @@ defaults = {
     'SparseCoder': {},
     'log': {
       'filename': None,
+      # 'stream': sys.stdout,
       'filemode': 'a+',
       'format': '%(asctime)s %(message)s',
       'level': 'DEBUG'
@@ -182,9 +183,6 @@ config['trace']['inner_output_directory'] = os.path.join(
     config['trace']['output_root'],
     config['trace']['inner_output_directory'] or default_inner_dir)
 
-config['trace']['log']['filename'] = (config['trace']['log']['filename'] or 
-    os.path.join(config['trace']['output_root'], 'sparco.log'))
-
 config['trace']['SparseCoder']['config_key_function'] = config['trace']['config_key_function']
 
 if isinstance(config['trace']['log']['level'], str):
@@ -212,7 +210,7 @@ if config['mode'] == 'ladder':
   sc = sparco.SparseCoder(*config['nets'])
   if config['trace']['enable']:
     traceutil.tracer.apply_tracer(sparco.trace.sparse_coder.Tracer,
-        target=sc, RootSpikenet_config = config['trace']['RootSpikenet'],
+        target=sc, RootSpikenet_config=config['trace']['RootSpikenet'],
         output_path=config['trace']['inner_output_directory'],
         **config['trace']['SparseCoder'])
   sc.run()
