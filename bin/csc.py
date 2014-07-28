@@ -217,6 +217,7 @@ if config['mode'] == 'ladder':
 
 elif config['mode'] == 'batch':
   for c in config['nets']:
+    print 'node {0} started iteration '.format(mpi.rank)
     if mpi.rank == mpi.root:
       sn = sparco.sp.RootSpikenet(**c)
       if config['trace']['enable']:
@@ -228,4 +229,5 @@ elif config['mode'] == 'batch':
       sn = sparco.sp.Spikenet(**c)
     mpi.barrier()
     sn.run()
+    print 'node {0} completed iteration '.format(mpi.rank)
 
