@@ -103,7 +103,7 @@ def parse_args():
 #   provided here will be used globally-- i.e. it will be merged into the
 #   `Sampler` instances corresponding to each `Spikenet`. To set
 #   spikenet-specific `Sampler` parameters, define these settings in the
-#   `sampler` key for a `Spikenet` configuration.
+#   `sampler_settings` key for a `Spikenet` configuration.
 # trace : dict
 #   Configuration for the `sparco.trace` classes corresponding to
 #   `sparco` classes. Used to configure output. See README for an explanation
@@ -193,7 +193,7 @@ if len(config['nets']) == 0:
   config['nets'].append({})
 
 for c in config['nets']:
-  c['sampler'] = pfacets.merge(c.get('sampler', {}), config['sampler'])
+  c['sampler_settings'] = pfacets.merge(c.get('sampler_settings', {}), config['sampler'])
 
 ###################################
 ########### RUN
@@ -217,7 +217,6 @@ if config['mode'] == 'ladder':
 
 elif config['mode'] == 'batch':
   for c in config['nets']:
-    print 'node {0} started iteration '.format(mpi.rank)
     if mpi.rank == mpi.root:
       sn = sparco.sp.RootSpikenet(**c)
       if config['trace']['enable']:
@@ -227,7 +226,5 @@ elif config['mode'] == 'batch':
             target=sn, output_path=output_path, **config['trace']['RootSpikenet'])
     else:
       sn = sparco.sp.Spikenet(**c)
-    mpi.barrier()
     sn.run()
-    print 'node {0} completed iteration '.format(mpi.rank)
 

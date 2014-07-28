@@ -169,8 +169,11 @@ class Sampler(object):
     3d np.array
       The axes are ordered (patch number, channel, time).
     """
+    print 'getting patches'
     if self.patches_retrieved > (self.cache_size * self.resample_cache):
+      print 'refreshing cache'
       self.refresh_cache()
+      print 'cache refreshed'
     self.patches_retrieved += num
     gen_func = functools.partial(pfacets.np.sample_array,
         self.superpatch, self.patch_length, axis=self.time_dimension)

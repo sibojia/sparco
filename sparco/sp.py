@@ -104,7 +104,7 @@ class Spikenet(object):
   ########### INITIALIZATION
 
   defaults = {
-      'sampler': None,
+      'sampler_settings': None,
       'patches_per_iteration': mpi.procs,
       'num_iterations': 100,
       'run_time_limit': float("inf"),
@@ -137,9 +137,6 @@ class Spikenet(object):
 
     pfacets.set_attributes_from_dicts(self, Spikenet.defaults, kwargs)
 
-    self.sampler = (self.sampler if isinstance(self.sampler, sparco.Sampler)
-        else sparco.Sampler(**self.sampler))
-
     # TODO temp for profiling; second line is especially hacky
     self.learn_basis = getattr(self, "learn_basis{0}".format(self.basis_method))
     self.__class__.learn_basis = getattr(self.__class__,
@@ -153,8 +150,9 @@ class Spikenet(object):
     self.run_time =0
     self.last_time = time.time()
 
-    C, N, P = len(self.sampler.channels), self.dictionary_size, self.convolution_time_length
-    T = self.sampler.patch_length
+    C, N, P = (len(self.sampler_settings['channels']), self.dictionary_size,
+        self.convolution_time_length)
+    T = self.sampler_settings['patch_length']
     buffer_dimensions = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
         'dx': (C,T), 'dphi': (C,N,P), 'E': (1,), 'a_l0_norm': (N,),
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
@@ -301,6 +299,7 @@ class RootSpikenet(Spikenet):
     see `Spikenet#__init__`
     """
     Spikenet.__init__(self, **kwargs)
+    self.sampler = sparco.Sampler(**self.sampler_settings)
 
   def create_root_buffers1(self, buffer_dimensions):
     rootbufs, rootbufs_mean = {}, {}
