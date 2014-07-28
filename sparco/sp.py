@@ -147,7 +147,7 @@ class Spikenet(object):
     self.create_root_buffers = getattr(self,
           "create_root_buffers{0}".format(self.basis_method))
 
-    self.patches_per_node = self.patches_per_iteration / mpi.procs
+    self.patches_per_core = self.patches_per_iteration / mpi.procs
     pfacets.mixin(self, self.learner_class)
     self.a_variance_cumulative = np.zeros(self.dictionary_size)
     self.run_time =0
@@ -175,7 +175,7 @@ class Spikenet(object):
     """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
-      nodebufs[name] = np.zeros((self.patches_per_node,) + dims)
+      nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
       nodebufs_mean[name] = np.zeros(dims)
     self.nodebufs = pfacets.data(mean=pfacets.data(**nodebufs_mean), **nodebufs)
 
@@ -227,7 +227,7 @@ class Spikenet(object):
       self.update_coefficient_statistics()
 
   def infer_coefficients(self):
-    for i in range(self.patches_per_node):
+    for i in range(self.patches_per_core):
       self.nodebufs.a[i] = self.inference_function(self.phi,
           self.nodebufs.x[i], **self.inference_settings)
 
@@ -256,7 +256,7 @@ class Spikenet(object):
 
   # TODO see if I can get the normalized norms in a single call
   def update_coefficient_statistics(self):
-    for i in range(self.patches_per_node):
+    for i in range(self.patches_per_core):
 
       l0_norm = functools.partial(np.linalg.norm, ord=0)
       self.nodebufs.a_l0_norm[i] = np.apply_along_axis(l0_norm, 1, self.nodebufs.a[i])
