@@ -224,8 +224,15 @@ elif config['mode'] == 'batch':
       if config['trace']['enable']:
         output_path = os.path.join(config['trace']['inner_output_directory'],
             config['trace']['config_key_function'](sn))
+        # output_path = os.path.join(config['trace']['inner_output_directory'],
+        #     config['trace']['config_key_function'](sn))
+        print 'applying tracer to spikenet...'
         traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,
             target=sn, output_path=output_path, **config['trace']['RootSpikenet'])
+        print 'tracer applied'
     else:
       sn = sparco.sp.Spikenet(**c)
+    print 'rank {0} reached run barrier'.format(mpi.rank)
+    mpi.barrier()
+    print 'rank {0} passed run barrier'.format(mpi.rank)
     sn.run()
