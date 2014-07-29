@@ -232,7 +232,7 @@ elif config['mode'] == 'batch':
         print 'tracer applied'
     else:
       sn = sparco.sp.Spikenet(**c)
-    print 'rank {0} reached run barrier @ {1}'.format(mpi.rank, time.time - start_time)
+    print 'rank {0} reached run barrier @ {1}'.format(mpi.rank, time.time() - start_time)
     mpi.barrier()
     print 'rank {0} passed run barrier @ {1}'.format(mpi.rank, time.time() - start_time)
     sn.run()
