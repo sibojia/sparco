@@ -218,7 +218,6 @@ if config['mode'] == 'ladder':
 
 elif config['mode'] == 'batch':
   for c in config['nets']:
-    from IPython import embed; embed()
     if mpi.rank == mpi.root:
       sn = sparco.sp.RootSpikenet(**c)
       if config['trace']['enable']:
