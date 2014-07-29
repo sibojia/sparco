@@ -174,6 +174,7 @@ class Spikenet(object):
     """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
+      print name
       nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
       nodebufs_mean[name] = np.zeros(dims)
     self.nodebufs = pfacets.data(mean=pfacets.data(**nodebufs_mean), **nodebufs)
