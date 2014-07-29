@@ -49,7 +49,6 @@ def get_defaults(filepath, klass, reject=[]):
         break
     defaults = "\n".join(lines[0:endline-1])
     separated = split_indented_list(defaults)
-    # from IPython import embed; embed()
     take = filter(lambda x: re.search('\w+', x).group(0) not in reject, separated)
     return "".join(take).rstrip()
     # return "\n".join(lines[0:endline-1]) if endline else None

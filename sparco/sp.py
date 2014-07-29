@@ -174,12 +174,8 @@ class Spikenet(object):
     """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
-      try: 
-        nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
-        nodebufs_mean[name] = np.zeros(dims)
-      except:
-        if mpi.rank == mpi.root:
-          print 'name: {0}  dims: {1}'.format(name, dims)
+      nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
+      nodebufs_mean[name] = np.zeros(dims)
     self.nodebufs = pfacets.data(mean=pfacets.data(**nodebufs_mean), **nodebufs)
 
   # TODO temp for profiling
