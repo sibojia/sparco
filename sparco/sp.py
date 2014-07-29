@@ -154,7 +154,6 @@ class Spikenet(object):
 
     C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
     T = self.patch_length
-    from IPython import embed; embed()
     buffer_dimensions = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
         'dx': (C,T), 'dphi': (C,N,P), 'E': (1,), 'a_l0_norm': (N,),
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
