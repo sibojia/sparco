@@ -15,7 +15,7 @@ import numpy as np
 #   in the class
 def get_spikenet_parameters(config):
   config = pfacets.merge(Sampler.defaults, config)
-  if config.get('channels'):
+  if config.get('channels') is not None:
     return { 'num_channels': len(config['channels']),
           'patch_length': config['patch_length'] }
   else:
