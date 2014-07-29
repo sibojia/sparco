@@ -217,6 +217,7 @@ if config['mode'] == 'ladder':
   sc.run()
 
 elif config['mode'] == 'batch':
+  start_time = time.time()
   for c in config['nets']:
     if mpi.rank == mpi.root:
       sn = sparco.sp.RootSpikenet(**c)
@@ -231,7 +232,7 @@ elif config['mode'] == 'batch':
         print 'tracer applied'
     else:
       sn = sparco.sp.Spikenet(**c)
-    print 'rank {0} reached run barrier'.format(mpi.rank)
+    print 'rank {0} reached run barrier @ {1}'.format(mpi.rank, time.time - start_time)
     mpi.barrier()
-    print 'rank {0} passed run barrier'.format(mpi.rank)
+    print 'rank {0} passed run barrier @ {1}'.format(mpi.rank, time.time() - start_time)
     sn.run()
