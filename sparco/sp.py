@@ -154,6 +154,7 @@ class Spikenet(object):
 
     C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
     T = self.patch_length
+    from IPython import embed; embed()
     buffer_dimensions = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
         'dx': (C,T), 'dphi': (C,N,P), 'E': (1,), 'a_l0_norm': (N,),
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
@@ -174,9 +175,12 @@ class Spikenet(object):
     """
     nodebufs, nodebufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
-      print name
-      nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
-      nodebufs_mean[name] = np.zeros(dims)
+      try: 
+        nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
+        nodebufs_mean[name] = np.zeros(dims)
+      except:
+        if mpi.rank == mpi.root:
+          print 'name: {0}  dims: {1}'.format(name, dims)
     self.nodebufs = pfacets.data(mean=pfacets.data(**nodebufs_mean), **nodebufs)
 
   # TODO temp for profiling
