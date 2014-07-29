@@ -194,6 +194,7 @@ if len(config['nets']) == 0:
 
 for c in config['nets']:
   c['sampler_settings'] = pfacets.merge(c.get('sampler_settings', {}), config['sampler'])
+  c.update(sparco.sampler.get_spikenet_parameters(c['sampler_settings']))
 
 ###################################
 ########### RUN
@@ -227,4 +228,3 @@ elif config['mode'] == 'batch':
     else:
       sn = sparco.sp.Spikenet(**c)
     sn.run()
-

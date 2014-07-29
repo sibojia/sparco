@@ -180,13 +180,13 @@ trace = {
 # the array of arrays `ladder`.
 
 # Keys for Spikenet:
-{{format(get_params(sparco.sp.Spikenet.__doc__))}}
+{{format(get_params(sparco.sp.Spikenet.__doc__, reject=['num_channels', 'patch_length']))}}
 
 # Keys for 'inference_settings':
 {{format(get_params(sparco.sparseqn.sparseqn_batch.__doc__, reject=['phi', 'X']))}}
 
 template = {
-{{format(get_defaults(os.path.join(root, 'sparco', 'sp.py'), 'Spikenet'),2)}}
+{{format(get_defaults(os.path.join(root, 'sparco', 'sp.py'), 'Spikenet', reject=['num_channels', 'patch_length']),2)}}
 }
 
 # lam, maxit, num_iterations, target_angle

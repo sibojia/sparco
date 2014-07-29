@@ -108,6 +108,8 @@ class Spikenet(object):
       'patches_per_iteration': mpi.procs,
       'num_iterations': 100,
       'run_time_limit': float("inf"),
+      'num_channels': None,
+      'patch_length': 128,
       'dictionary_size': 100,
       'convolution_time_length': 64,
       'phi': None,
@@ -150,9 +152,8 @@ class Spikenet(object):
     self.run_time =0
     self.last_time = time.time()
 
-    C, N, P = (len(self.sampler_settings['channels']), self.dictionary_size,
-        self.convolution_time_length)
-    T = self.sampler_settings['patch_length']
+    C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
+    T = self.patch_length
     buffer_dimensions = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
         'dx': (C,T), 'dphi': (C,N,P), 'E': (1,), 'a_l0_norm': (N,),
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
@@ -323,6 +324,10 @@ class RootSpikenet(Spikenet):
     self.phi = np.random.randn(*dims) if self.phi is None else self.phi
     self.phi /= sptools.vnorm(self.phi)
     super(RootSpikenet, self).initialize_phi(*dims)
+
+  def run(self):
+    super(RootSpikenet, self).run()
+    self.sampler.close_files()
 
   def iteration(self):
     self.load_patches()

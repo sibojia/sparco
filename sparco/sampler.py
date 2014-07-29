@@ -8,6 +8,30 @@ import pfacets
 import numpy as np
 
 ###################################
+########### UTILITY
+###################################
+
+# TODO perhaps invent a better way to do this-- currently duplicates a lot of code
+#   in the class
+def get_spikenet_parameters(config):
+  config = pfacets.merge(Sampler.defaults, config)
+  if config.get('channels'):
+    return { 'num_channels': len(config['channels']),
+          'patch_length': config['patch_length'] }
+  else:
+    if re.search('.h5', config['input_path']):
+      f = h5py.File(f, 'r')
+    else:
+      f = h5py.File(glob.glob(os.path.join(config['input_path'], '*.h5'))[0], 'r')
+    data = reduce(lambda a,k: a[k], config['hdf5_data_path'], f)
+    channel_dimension = int(not config['time_dimension'])
+    ret = { 'num_channels': data.shape[channel_dimension],
+        'patch_length': config['patch_length'] }
+    f.close()
+    return ret
+
+
+###################################
 ########### SELECTION FILTERS
 ###################################
 
@@ -114,6 +138,11 @@ class Sampler(object):
       filenames = glob.glob(os.path.join(self.input_path, '*.h5'))
     self.files = [ h5py.File(f, 'r') for f in filenames ]
 
+  def close_files(self):
+    """Close all streams to h5 files in input directory."""
+    for f in self.files:
+      f.close()
+
   def update_configuration_from_files(self):
     # TODO fix this docstring
     """Read metadata from hdf5 files and configure accordingly.
@@ -169,7 +198,8 @@ class Sampler(object):
     3d np.array
       The axes are ordered (patch number, channel, time).
     """
-    print 'getting patches'
+    print 'getting patches {0}/{1}'.format(self.patches_retrieved,
+        (self.cache_size * self.resample_cache))
     if self.patches_retrieved > (self.cache_size * self.resample_cache):
       print 'refreshing cache'
       self.refresh_cache()
