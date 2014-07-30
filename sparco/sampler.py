@@ -7,6 +7,8 @@ import h5py
 import pfacets
 import numpy as np
 
+import time
+
 ###################################
 ########### UTILITY
 ###################################
@@ -198,6 +200,7 @@ class Sampler(object):
     3d np.array
       The axes are ordered (patch number, channel, time).
     """
+    start_time = time.time()
     print 'getting patches {0}/{1}'.format(self.patches_retrieved,
         (self.cache_size * self.resample_cache))
     if self.patches_retrieved > (self.cache_size * self.resample_cache):
@@ -209,6 +212,7 @@ class Sampler(object):
         self.superpatch, self.patch_length, axis=self.time_dimension)
     gen = iter(gen_func, None)
     patches = np.array(pfacets.generate_filtered(gen, self.patch_filter, num))
+    print 'successfully retrieved patches @ {0}'.format(time.time() - start_time)
     return np.ascontiguousarray(
         np.transpose(patches, (0, self.channel_dimension+1, self.time_dimension+1)))
 

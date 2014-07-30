@@ -211,10 +211,8 @@ class Spikenet(object):
     bool
       True if run time is greater than `run_time_limit`
     """
-      
-    now = time.time()
-    self.run_time += now - self.last_time
-    self.last_time = now
+    self.run_time = mpi.bcast_obj(self.run_time)
+    print "run time is {0} on rank {1}".format(self.run_time, mpi.rank)
     return self.run_time < self.run_time_limit
 
   def iteration(self):
@@ -328,6 +326,20 @@ class RootSpikenet(Spikenet):
   def run(self):
     super(RootSpikenet, self).run()
     self.sampler.close_files()
+
+  # TODO temp until decorator solution
+  def within_time_limit(self):
+    """Check if net has been running for longer than configured limit.
+
+    Returns
+    -------
+    bool
+      True if run time is greater than `run_time_limit`
+    """
+    now = time.time()
+    self.run_time += now - self.last_time
+    self.last_time = now
+    return super(RootSpikenet, self).within_time_limit()
 
   def iteration(self):
     self.load_patches()
