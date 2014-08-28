@@ -216,7 +216,6 @@ class Spikenet(object):
     return self.run_time < self.run_time_limit
 
   def iteration(self):
-    mpi.barrier()
     mpi.bcast(self.phi)
     mpi.scatter(self.rootbufs.x, self.nodebufs.x)
     self.infer_coefficients()
