@@ -116,6 +116,7 @@ class Sampler(object):
       'time_dimension': 1,
       'patch_length': 128,
       'patch_filters': [std_threshold, max_u_in_bound],
+      'pre_processors': [],
       'channels': None
       }
 
@@ -183,6 +184,12 @@ class Sampler(object):
     self.superpatch = ds[start:start+self.superpatch_length, self.channels]
     self.patches_retrieved = 0
 
+  def pre_process_cache(self):
+    """Apply pre-processors to the raw superpatch."""
+    for p in self.pre_processors:
+      from IPython import embed; embed()
+      self.superpatch = p(self.superpatch)
+
   def get_patches(self, num):
     """Randomly select `num` valid patches from the cached superpatch.
 
@@ -202,6 +209,7 @@ class Sampler(object):
     """
     if self.patches_retrieved > (self.cache_size * self.resample_cache):
       self.refresh_cache()
+      self.pre_process_cache()
     self.patches_retrieved += num
     gen_func = functools.partial(pfacets.np.sample_array,
         self.superpatch, self.patch_length, axis=self.time_dimension)
