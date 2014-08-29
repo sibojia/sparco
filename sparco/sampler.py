@@ -132,6 +132,7 @@ class Sampler(object):
     self.relative_dataset_sizes = [ s / sizes.sum() for s in sizes ]
     self.patch_shape = (len(self.channels), self.patch_length)
     self.refresh_cache()
+    self.pre_process_cache()
 
   def open_files(self):
     """Open streams to all h5 files in input directory."""
@@ -187,7 +188,6 @@ class Sampler(object):
   def pre_process_cache(self):
     """Apply pre-processors to the raw superpatch."""
     for p in self.pre_processors:
-      from IPython import embed; embed()
       self.superpatch = p(self.superpatch)
 
   def get_patches(self, num):
