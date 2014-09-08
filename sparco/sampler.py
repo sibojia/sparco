@@ -128,7 +128,7 @@ class Sampler(object):
     self.open_files()
     self.update_configuration_from_files()
     self.remove_short_files()
-    sizes = np.array([ f['data'].shape[self.time_dimension] for f in self.files ])
+    sizes = np.array([ self.get_main_dataset(f).shape[self.time_dimension] for f in self.files ])
     self.relative_dataset_sizes = [ s / sizes.sum() for s in sizes ]
     self.patch_shape = (len(self.channels), self.patch_length)
     self.refresh_cache()
@@ -178,11 +178,11 @@ class Sampler(object):
 
     Randomly selects a file and a continuous segment of the main dataset of
     that file of time-dimension length `superpatch_length`. Reads this into
-    attribute `superpatch`.
+    attribute `superpatch`. Takes every nth sample, where n is set by `subsample`.
     """
     ds = self.get_random_dataset()
     start = np.random.randint(0, ds.shape[self.time_dimension] - self.superpatch_length)
-    self.superpatch = ds[start:start+self.superpatch_length, self.channels]
+    self.superpatch = ds[start:start+self.superpatch_length:self.subsample, self.channels]
     self.patches_retrieved = 0
 
   def pre_process_cache(self):
