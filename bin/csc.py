@@ -13,6 +13,7 @@ sys.path.insert(0,
 for x in ['pfacets', 'traceutil', 'quasinewton']:
   sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__),
     '..', 'lib', x)))
+print sys.path
 
 import pfacets
 import traceutil
