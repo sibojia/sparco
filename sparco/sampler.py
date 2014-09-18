@@ -182,7 +182,10 @@ class Sampler(object):
     """
     ds = self.get_random_dataset()
     start = np.random.randint(0, ds.shape[self.time_dimension] - self.superpatch_length)
-    self.superpatch = ds[start:start+self.superpatch_length:self.subsample, self.channels]
+    if self.time_dimension == 0:
+      self.superpatch = ds[start:start+self.superpatch_length:self.subsample, self.channels]
+    else:
+      self.superpatch = ds[self.channels, start:start+self.superpatch_length:self.subsample]
     self.patches_retrieved = 0
 
   def pre_process_cache(self):
