@@ -304,6 +304,7 @@ class RootSpikenet(Spikenet):
     proc_based = list(set(buffer_dimensions.keys()) - set(['x'])) # TODO hack
     for name,dims in buffer_dimensions.items():
       first_dim = mpi.procs if (name in proc_based) else self.patches_per_iteration
+      print "creating root buffers for {0}; dims: {1} ".format(name, ((first_dim,) + dims))
       rootbufs[name] = np.zeros((first_dim,) + dims)
       rootbufs_mean[name] = np.zeros(dims)
     self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
