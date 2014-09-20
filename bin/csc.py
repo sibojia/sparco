@@ -7,6 +7,8 @@ import logging
 import time
 import sys
 
+import h5py
+
 # TODO fix this-- the issue is that tokyo is not on the load path
 sys.path.insert(0,
     os.path.normpath(os.path.join(os.path.dirname(__file__),  '..')))
@@ -33,6 +35,8 @@ import sparco.trace
 # `arg_parser.parse_args()`.
 
 arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument('-b', '--basis-path',
+    help='path to an hdf5 file holding an initial basis matrix in dataset "phi"')
 arg_parser.add_argument('-c', '--channels',
     help='comma-separated string of channel ranges and individual values')
 arg_parser.add_argument('-C', '--local-config-path',
@@ -185,12 +189,16 @@ config['trace']['inner_output_directory'] = os.path.join(
 
 config['trace']['SparseCoder']['config_key_function'] = config['trace']['config_key_function']
 
+
 if isinstance(config['trace']['log']['level'], str):
   config['trace']['log']['level'] = getattr(logging,
       config['trace']['log']['level'].upper())
 
 if len(config['nets']) == 0:
   config['nets'].append({})
+
+if args.basis_path is not None:
+  config['nets'][0]['phi'] = h5py.File(args.basis_path, 'r')['phi']
 
 for c in config['nets']:
   c['sampler_settings'] = pfacets.merge(c.get('sampler_settings', {}), config['sampler'])
