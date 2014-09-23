@@ -131,20 +131,12 @@ class Spikenet(object):
       'update_coefficient_statistics_interval': 100,
       'basis_centering_interval': None,
       'basis_centering_max_shift': None,
-      'basis_method': 1,  # TODO this is a temporary measure
       }
 
   def __init__(self, **kwargs):
     """Configure the Spikenet."""
 
     pfacets.set_attributes_from_dicts(self, Spikenet.defaults, kwargs)
-
-    # TODO temp for profiling; second line is especially hacky
-    self.learn_basis = getattr(self, "learn_basis{0}".format(self.basis_method))
-    self.__class__.learn_basis = getattr(self.__class__,
-        'learn_basis{0}'.format(self.basis_method))
-    self.create_root_buffers = getattr(self,
-          "create_root_buffers{0}".format(self.basis_method))
 
     self.patches_per_core = self.patches_per_iteration / mpi.procs
     pfacets.mixin(self, self.learner_class)
@@ -154,14 +146,21 @@ class Spikenet(object):
 
     C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
     T = self.patch_length
-    buffer_dimensions = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
+    patch_nodebuf_dims = { 'a': (N, P+T-1), 'x': (C, T), 'xhat': (C,T),
         'dx': (C,T), 'dphi': (C,N,P), 'E': (1,), 'a_l0_norm': (N,),
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
-    self.create_node_buffers(buffer_dimensions)
-    self.create_root_buffers(buffer_dimensions)
+    nodebuf_dims = { k: (self.patches_per_core,) + v
+        for (k,v) in patch_nodebuf_dims.items() }
+    rootbuf_first_dims = { 'x': self.patches_per_iteration, 'dphi': mpi.procs,
+        'E': mpi.procs, 'a_l0_norm': mpi.procs, 'a_l1_norm': mpi.procs,
+        'a_l2_norm': mpi.procs, 'a_variance': mpi.procs }
+    rootbuf_dims = { k: (v,) + patch_nodebuf_dims[k]
+        for (k,v) in rootbuf_first_dims.items()}
+    self.nodebufs = self.create_buffers(nodebuf_dims)
+    self.rootbufs = self.create_buffers(rootbuf_dims)
     self.initialize_phi(C,N,P)
 
-  def create_node_buffers(self, buffer_dimensions):
+  def create_buffers(self, buffer_dimensions):
     """Allocate numpy arrays for storing intermediate results of computations.
 
     This preallocation is necessary for use of mpi `Scatter`, `Gather`, and
@@ -170,22 +169,22 @@ class Spikenet(object):
     Parameters
     ----------
     buffer_dimensions : dict
-      A buffer will be created for each 
+      For each item in this `dict`, two buffers are created. One to hold the
+      values associated with each patch, and one to hold the value after
+      averaging across patches.
     """
-    nodebufs, nodebufs_mean = {}, {}
+    bufs, bufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
-      nodebufs[name] = np.zeros((self.patches_per_core,) + dims)
-      nodebufs_mean[name] = np.zeros(dims)
-    self.nodebufs = pfacets.data(mean=pfacets.data(**nodebufs_mean), **nodebufs)
+      bufs[name] = np.zeros(dims)
+      bufs_mean[name] = np.zeros(dims[1:])
+    return pfacets.data(mean=pfacets.data(**bufs_mean), **bufs)
 
   # TODO temp for profiling
-  def create_root_buffers1(self, buffer_dimensions):
+  def create_root_buffers(self, buffer_dimensions):
     rootbufs, rootbufs_mean = {}, {}
     for name,dims in buffer_dimensions.items():
       rootbufs[name], rootbufs_mean['name'] = None, None
     self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
-
-  create_root_buffers2 = create_root_buffers1
 
   def initialize_phi(self, *dims):
     """Allocate buffer for phi and broadcast from the root."""
@@ -298,25 +297,11 @@ class RootSpikenet(Spikenet):
     Spikenet.__init__(self, **kwargs)
     self.sampler = sparco.Sampler(**self.sampler_settings)
 
-  def create_root_buffers1(self, buffer_dimensions):
-    rootbufs_needed = ['x', 'E', 'dphi', 'a_l0_norm', 'a_l1_norm', 'a_l2_norm',
-        'a_variance']
+  def create_root_buffers(self, buffer_dimensions):
     rootbufs, rootbufs_mean = {}, {}
-    proc_based = list(set(buffer_dimensions.keys()) - set(['x'])) # TODO hack
     for name,dims in buffer_dimensions.items():
-      first_dim = mpi.procs if (name in proc_based) else self.patches_per_iteration
-      print "creating root buffers for {0}; dims: {1} ".format(name, ((first_dim,) + dims))
-      rootbufs[name] = np.zeros((first_dim,) + dims)
-      rootbufs_mean[name] = np.zeros(dims)
-    self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
-
-  def create_root_buffers2(self, buffer_dimensions):
-    rootbufs, rootbufs_mean = {}, {}
-    proc_based = ['a_l0_norm', 'a_l1_norm', 'a_l2_norm', 'a_variance']
-    for name,dims in buffer_dimensions.items():
-      first_dim = mpi.procs if (name in proc_based) else self.patches_per_iteration
-      rootbufs[name] = np.zeros((first_dim,) + dims)
-      rootbufs_mean[name] = np.zeros(dims)
+      rootbufs[name] = np.zeros(dims)
+      rootbufs_mean[name] = np.zeros(dims[1:])
     self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
 
   def initialize_phi(self, *dims):
@@ -352,14 +337,8 @@ class RootSpikenet(Spikenet):
   def infer_coefficients(self):
     super(RootSpikenet, self).infer_coefficients()
 
-  def learn_basis1(self):
+  def learn_basis(self):
     super(RootSpikenet, self).learn_basis1()
-    self.average_patch_objectives(self.rootbufs)
-    self.update_eta_and_phi()
-
-  def learn_basis2(self):
-    super(RootSpikenet, self).learn_basis2()
-    self.compute_patch_objectives(self.rootbufs)
     self.average_patch_objectives(self.rootbufs)
     self.update_eta_and_phi()
 
