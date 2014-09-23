@@ -227,15 +227,11 @@ class Spikenet(object):
           self.nodebufs.x[i], **self.inference_settings)
 
   # more parallel, higher bandwidth requirement
-  def learn_basis1(self):
+  def learn_basis(self):
     self.compute_patch_objectives(self.nodebufs)
     self.average_patch_objectives(self.nodebufs)
     mpi.gather(self.nodebufs.mean.E, self.rootbufs.E)
     mpi.gather(self.nodebufs.mean.dphi, self.rootbufs.dphi)
-
-  # less parallel, lower bandwidth requirement
-  def learn_basis2(self):
-    mpi.gather(self.nodebufs.a, self.rootbufs.a, mpi.root)
 
   def compute_patch_objectives(self, bufset):
     for i in range(bufset.x.shape[0]):
@@ -338,7 +334,7 @@ class RootSpikenet(Spikenet):
     super(RootSpikenet, self).infer_coefficients()
 
   def learn_basis(self):
-    super(RootSpikenet, self).learn_basis1()
+    super(RootSpikenet, self).learn_basis()
     self.average_patch_objectives(self.rootbufs)
     self.update_eta_and_phi()
 
