@@ -149,7 +149,7 @@ class Spikenet(object):
     self.patches_per_core = self.patches_per_iteration / mpi.procs
     pfacets.mixin(self, self.learner_class)
     self.a_variance_cumulative = np.zeros(self.dictionary_size)
-    self.run_time =0
+    self.run_time = 0
     self.last_time = time.time()
 
     C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
@@ -212,7 +212,6 @@ class Spikenet(object):
       True if run time is greater than `run_time_limit`
     """
     self.run_time = mpi.bcast_obj(self.run_time)
-    print "run time is {0} on rank {1}".format(self.run_time, mpi.rank)
     return self.run_time < self.run_time_limit
 
   def iteration(self):
@@ -300,6 +299,8 @@ class RootSpikenet(Spikenet):
     self.sampler = sparco.Sampler(**self.sampler_settings)
 
   def create_root_buffers1(self, buffer_dimensions):
+    rootbufs_needed = ['x', 'E', 'dphi', 'a_l0_norm', 'a_l1_norm', 'a_l2_norm',
+        'a_variance']
     rootbufs, rootbufs_mean = {}, {}
     proc_based = list(set(buffer_dimensions.keys()) - set(['x'])) # TODO hack
     for name,dims in buffer_dimensions.items():

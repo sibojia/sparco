@@ -223,24 +223,13 @@ if config['mode'] == 'ladder':
 elif config['mode'] == 'batch':
   start_time = time.time()
   for c in config['nets']:
-    print 'rank {0} creating spikenet @ {1}'.format(mpi.rank, time.time() - start_time)
     if mpi.rank == mpi.root:
       sn = sparco.sp.RootSpikenet(**c)
-      print 'rank {0} successfully created spikenet @ {1}'.format(mpi.rank, time.time() - start_time)
       if config['trace']['enable']:
         output_path = os.path.join(config['trace']['inner_output_directory'],
             config['trace']['config_key_function'](sn))
-        # output_path = os.path.join(config['trace']['inner_output_directory'],
-        #     config['trace']['config_key_function'](sn))
-        print 'applying tracer to spikenet...'
         traceutil.tracer.apply_tracer(sparco.trace.sp.Tracer,
             target=sn, output_path=output_path, **config['trace']['RootSpikenet'])
-        print 'tracer applied'
     else:
       sn = sparco.sp.Spikenet(**c)
-      print 'rank {0} successfully created spikenet @ {1}'.format(mpi.rank, time.time() - start_time)
-    print 'rank {0} reached run barrier @ {1}'.format(mpi.rank, time.time() - start_time)
-    mpi.barrier()
-    print 'rank {0} passed run barrier @ {1}'.format(mpi.rank, time.time() - start_time)
     sn.run()
-    print 'rank {0} finished run @ {1}'.format(mpi.rank, time.time() - start_time)

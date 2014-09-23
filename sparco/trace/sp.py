@@ -1,3 +1,5 @@
+import copy
+import json
 import logging
 import os
 import pfacets
@@ -5,6 +7,7 @@ import pfacets
 import h5py
 import numpy as np
 
+import sparco.mpi as mpi
 import traceutil.tracer
 
 # TODO need docstrings
@@ -16,6 +19,8 @@ class Tracer(traceutil.tracer.Tracer):
     ----------
     snapshot_interval : int
       Number of iterations between successive writings of basis snapshots to disk.
+    dump_keys : list
+      Keys from the Spikenet configuration that are dumped as JSON.
   """
 
   defaults = {
@@ -27,8 +32,27 @@ class Tracer(traceutil.tracer.Tracer):
     kwargs = pfacets.merge(Tracer.defaults, kwargs)
     super(Tracer, self).__init__(**kwargs)
 
+  def dump_state(self, path=None):
+    special = {
+        'phi': lambda x: 'starting value' if x is not None else 'random start',
+        'inference_function': lambda x: x.__name__,
+        'learner_class': lambda x: x.__name__,
+        }
+    exclude = ['last_time', 'run_time']
+    d = self.target.__dict__
+    state = {}
+    for k in d.keys():
+      if k in special.keys():
+        special[k](d[k])
+      elif not k in exclude and type(d[k]) in [int, str, list, float]:
+        state[k] = d[k]
+      else:
+        continue
+    with open(path, 'w') as f:
+      f.write(json.dumps(state, sort_keys=True, indent=4, separators=(',', ': ')))
+
   def write_snapshot(self):
-    """Write an hdf5 and/or graphical snapshot of the Spikenet's current basis to disk."""
+    """Write an hdf5 snapshot of the Spikenet's current basis to disk."""
     self.write_basis_h5()
 
   # TODO figure out the sort order and stats here
@@ -66,7 +90,13 @@ class Tracer(traceutil.tracer.Tracer):
       tracer.write_snapshot()
     return ret
 
+  def t_within_time_limit(tracer, orig, self, *args, **kwargs):
+    ret = orig(self, *args, **kwargs)
+    logging.info("run time is {0} on rank {1}".format(self.run_time, mpi.rank))
+    return ret
+
   wrappers = {
       'run': [t_run],
-      'iteration': [t_iteration]
+      'iteration': [t_iteration],
+      'within_time_limit': [t_within_time_limit]
       }
