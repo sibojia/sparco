@@ -53,9 +53,6 @@ arg_parser.add_argument('--no-output', action='store_false', dest='output',
     help='do not write any output')
 arg_parser.add_argument('-o', '--output-root',
     help='path to directory containing output files')
-arg_parser.add_argument('--no-plots', action='store_false', dest='plots',
-    help="do not generate plots while running algorithm. Note that \
-    they can still be generated later.")
 arg_parser.add_argument('-s', '--snapshot-interval', default=100, type=int,
     help='number of iterations between basis snapshots')
 arg_parser.add_argument('-t', '--time-dimension', type=int,
@@ -171,7 +168,6 @@ cli_config = pfacets.map_object_to_dict(args, {
     'log_path': ['trace', 'log', 'filename'],
     'output': ['trace', 'enable'],
     'output_root': ['trace', 'output_root'],
-    'plots': ['trace', 'RootSpikenet', 'create_plots'],
     'snapshot_interval': ['trace', 'RootSpikenet', 'snapshot_interval'],
     })
 

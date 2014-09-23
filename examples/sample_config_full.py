@@ -19,8 +19,8 @@
 #   is analogous to root/ladder_or_batch_dir/spikenet1,
 #   root/ladder_or_batch_dir/spikenet2, etc. The difference between modes is
 #   that 'ladder' mode uses the final basis and eta values of each Spikenet as
-#   used as the initial values for the next Spikenet, while 'batch' mode
-#   initializes phi and eta independently for each `Spikenet`.
+#   the initial values for the next Spikenet, while 'batch' mode initializes
+#   phi and eta independently for each `Spikenet`.
 
 mode = 'ladder'
 
@@ -33,7 +33,7 @@ mode = 'ladder'
 #   provided here will be used globally-- i.e. it will be merged into the
 #   `Sampler` instances corresponding to each `Spikenet`. To set
 #   spikenet-specific `Sampler` parameters, define these settings in the
-#   `sampler` key for a `Spikenet` configuration.
+#   `sampler_settings` key for a `Spikenet` configuration.
 
 # Keys for `sampler`:
 # cache_size : int (optional)
@@ -65,6 +65,7 @@ sampler = {
   # 'time_dimension': 1,
   # 'patch_length': 128,
   # 'patch_filters': [std_threshold, max_u_in_bound],
+  # 'pre_processors': [],
   # 'channels': None
 }
 
@@ -130,35 +131,13 @@ trace = {
   #   the lists are overwritten rather than appended to.
 
   # Keys for RootSpikenet:
-  # create_plots : bool
-  #   Generate a grid of grids in png format
   # snapshot_interval : int
   #   Number of iterations between successive writings of basis snapshots to disk.
-  # plot_settings : dict
-  #   Contains settings for plots. There are two keys: `image`, which consists
-  #   of keyword arguments for `matplotlib.pyplot.imshow`, and `axis`, which
-  #   consists of keyword arguments for `matplotlib.pyplot.subplot`. All
-  #   parameters in both dictionaries are applied to each subplot in the output
-  #   grid.
 
   'RootSpikenet': {
     # 'wrappermerge': True,
     # 'wrappers': {},
-    # 'create_plots': True,
     # 'snapshot_interval': 100,
-    # 'plot_settings': {
-    #   'image': {
-    #     'cmap': plt.cm.jet,
-    #     'interpolation': 'nearest',
-    #     'aspect': 'equal',
-    #     'origin': 'upper',
-    #     },
-    #   'axis': {
-    #     'xticks': [],
-    #     'yticks': [],
-    #     'frame_on': False
-    #     }
-    #   }
   },
 
   # Keys for SparseCoder:
@@ -252,7 +231,7 @@ trace = {
 #   An array of dims of coefficients used to mask derivative.
 
 template = {
-  # 'sampler': None,
+  # 'sampler_settings': None,
   # 'patches_per_iteration': mpi.procs,
   # 'num_iterations': 100,
   # 'run_time_limit': float("inf"),
@@ -300,10 +279,40 @@ for lam, maxit, num_iterations, target_angle in ladder:
   nets.append(pfacets.merge(template, variable))
 
 ###################################
+########### PLOTS
+###################################
+
+# This section is used for generate_plots.py only-- all plotting code is
+# encapsulated here. csc.py does not use this. 
+
+# Keys for `generate_plots_config`:
+# image : dict
+#   keyword arguments for `matplotlib.pyplot.imshow`
+# axis :
+#   keyword arguments for `matplotlib.pyplot.subplot`.
+
+# All parameters in both dictionaries are applied to each subplot in the output
+# grid.
+
+generate_plots_config = {
+    'image': {
+      'cmap': plt.cm.jet,
+      'interpolation': 'nearest',
+      'aspect': 'equal',
+      'origin': 'upper',
+      },
+    'axis': {
+      'xticks': [],
+      'yticks': [],
+      'frame_on': False
+      }
+    }
+
+###################################
 ########### FINAL CONFIG
 ###################################
 
-# Here we define the final configuration object that is accessed by run.py. 
+# Here we define the final configuration object that is accessed by csc.py. 
 
 config = {
   'mode': mode,

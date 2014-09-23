@@ -208,10 +208,40 @@ for lam, maxit, num_iterations, target_angle in ladder:
   nets.append(pfacets.merge(template, variable))
 
 ###################################
+########### PLOTS
+###################################
+
+# This section is used for generate_plots.py only-- all plotting code is
+# encapsulated here. csc.py does not use this. 
+
+# Keys for `generate_plots_config`:
+# image : dict
+#   keyword arguments for `matplotlib.pyplot.imshow`
+# axis :
+#   keyword arguments for `matplotlib.pyplot.subplot`.
+
+# All parameters in both dictionaries are applied to each subplot in the output
+# grid.
+
+generate_plots_config = {
+    'image': {
+      'cmap': plt.cm.jet,
+      'interpolation': 'nearest',
+      'aspect': 'equal',
+      'origin': 'upper',
+      },
+    'axis': {
+      'xticks': [],
+      'yticks': [],
+      'frame_on': False
+      }
+    }
+
+###################################
 ########### FINAL CONFIG
 ###################################
 
-# Here we define the final configuration object that is accessed by run.py. 
+# Here we define the final configuration object that is accessed by csc.py. 
 
 config = {
   'mode': mode,
