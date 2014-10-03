@@ -151,40 +151,13 @@ class Spikenet(object):
         'a_l1_norm': (N,), 'a_l2_norm': (N,), 'a_variance': (N,) }
     nodebuf_dims = { k: (self.patches_per_core,) + v
         for (k,v) in patch_nodebuf_dims.items() }
-    rootbuf_first_dims = { 'x': self.patches_per_iteration, 'dphi': mpi.procs,
-        'E': mpi.procs, 'a_l0_norm': mpi.procs, 'a_l1_norm': mpi.procs,
-        'a_l2_norm': mpi.procs, 'a_variance': mpi.procs }
-    rootbuf_dims = { k: (v,) + patch_nodebuf_dims[k]
-        for (k,v) in rootbuf_first_dims.items()}
-    self.nodebufs = self.create_buffers(nodebuf_dims)
-    self.rootbufs = self.create_buffers(rootbuf_dims)
+    rootbuf_dims = pfacets.merge(patch_nodebuf_dims,
+        {'x': (self.patches_per_iteration,) + patch_nodebuf_dims['x']})
+    self.nodebufs = pfacets.data(**{k: np.zeros(v) for (k,v) in nodebuf_dims.items()})
+    self.rootbufs = pfacets.data(**{k: np.zeros(v) for (k,v) in rootbuf_dims.items()})
+    self.nodebufs.mean = pfacets.data(**{k: np.zeros(v)
+      for (k,v) in patch_nodebuf_dims.items()})
     self.initialize_phi(C,N,P)
-
-  def create_buffers(self, buffer_dimensions):
-    """Allocate numpy arrays for storing intermediate results of computations.
-
-    This preallocation is necessary for use of mpi `Scatter`, `Gather`, and
-    `Broadcast`.
-
-    Parameters
-    ----------
-    buffer_dimensions : dict
-      For each item in this `dict`, two buffers are created. One to hold the
-      values associated with each patch, and one to hold the value after
-      averaging across patches.
-    """
-    bufs, bufs_mean = {}, {}
-    for name,dims in buffer_dimensions.items():
-      bufs[name] = np.zeros(dims)
-      bufs_mean[name] = np.zeros(dims[1:])
-    return pfacets.data(mean=pfacets.data(**bufs_mean), **bufs)
-
-  # TODO temp for profiling
-  def create_root_buffers(self, buffer_dimensions):
-    rootbufs, rootbufs_mean = {}, {}
-    for name,dims in buffer_dimensions.items():
-      rootbufs[name], rootbufs_mean['name'] = None, None
-    self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
 
   def initialize_phi(self, *dims):
     """Allocate buffer for phi and broadcast from the root."""
@@ -230,8 +203,8 @@ class Spikenet(object):
   def learn_basis(self):
     self.compute_patch_objectives(self.nodebufs)
     self.average_patch_objectives(self.nodebufs)
-    mpi.gather(self.nodebufs.mean.E, self.rootbufs.E)
-    mpi.gather(self.nodebufs.mean.dphi, self.rootbufs.dphi)
+    self.reduce_to_mean('E')
+    self.reduce_to_mean('dphi')
 
   def compute_patch_objectives(self, bufset):
     for i in range(bufset.x.shape[0]):
@@ -266,7 +239,13 @@ class Spikenet(object):
 
     for stat in ['a_l0_norm', 'a_l1_norm', 'a_l1_norm', 'a_variance']:
       setattr(self.nodebufs.mean, stat, np.mean(getattr(self.nodebufs, stat), axis=0))
-      mpi.gather(getattr(self.nodebufs.mean, stat), getattr(self.rootbufs, stat))
+      self.reduce_to_mean(stat)
+      # mpi.gather(getattr(self.nodebufs.mean, stat), getattr(self.rootbufs, stat))
+
+  ########### MEAN
+
+  def reduce_to_mean(self, x):
+    mpi.reduce(getattr(self.nodebufs.mean, x), getattr(self.rootbufs, x), op=mpi.SUM)
 
 ###################################
 ########### MPI ROOT
@@ -292,13 +271,6 @@ class RootSpikenet(Spikenet):
     """
     Spikenet.__init__(self, **kwargs)
     self.sampler = sparco.Sampler(**self.sampler_settings)
-
-  def create_root_buffers(self, buffer_dimensions):
-    rootbufs, rootbufs_mean = {}, {}
-    for name,dims in buffer_dimensions.items():
-      rootbufs[name] = np.zeros(dims)
-      rootbufs_mean[name] = np.zeros(dims[1:])
-    self.rootbufs = pfacets.data(mean=pfacets.data(**rootbufs_mean), **rootbufs)
 
   def initialize_phi(self, *dims):
     self.phi = np.random.randn(*dims) if self.phi is None else self.phi
@@ -335,12 +307,13 @@ class RootSpikenet(Spikenet):
 
   def learn_basis(self):
     super(RootSpikenet, self).learn_basis()
-    self.average_patch_objectives(self.rootbufs)
+    self.rootbufs.dphi /= mpi.procs
+    self.rootbufs.E /= mpi.procs
     self.update_eta_and_phi()
 
   def update_eta_and_phi(self):
     self.proposed_phi = sptools.compute_proposed_phi(self.phi,
-        self.rootbufs.mean.dphi, self.eta)
+        self.rootbufs.dphi, self.eta)
     self.phi_angle = sptools.compute_angle(self.phi, self.proposed_phi)
     self.update_phi()
     self.update_eta()
@@ -348,7 +321,10 @@ class RootSpikenet(Spikenet):
   def update_coefficient_statistics(self):
     super(RootSpikenet, self).update_coefficient_statistics()
     for stat in ['a_l0_norm', 'a_l1_norm', 'a_l2_norm', 'a_variance']:
-      mean = np.mean(getattr(self.rootbufs, stat), axis=0)
-      setattr(self.rootbufs.mean, stat, mean)
-    self.a_variance_cumulative += self.rootbufs.mean.a_variance
+      setattr(self.rootbufs, stat, getattr(self.rootbufs, stat) / mpi.procs)
+    self.a_variance_cumulative += self.rootbufs.a_variance
     self.basis_sort_order = np.argsort(self.a_variance_cumulative)[::-1]
+
+  def reduce_to_mean(self, x):
+    super(RootSpikenet, self).reduce_to_mean(x)
+    setattr(self.rootbufs, x, getattr(self.rootbufs, x) / mpi.procs)

@@ -9,3 +9,6 @@ bcast = MPI.COMM_WORLD.Bcast
 bcast_obj = MPI.COMM_WORLD.bcast
 scatter = MPI.COMM_WORLD.Scatter
 gather = MPI.COMM_WORLD.Gather
+reduce = MPI.COMM_WORLD.Reduce
+
+SUM = MPI.SUM
