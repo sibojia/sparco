@@ -146,6 +146,7 @@ class Spikenet(object):
     self.a_variance_cumulative = np.zeros(self.dictionary_size)
     self.run_time = 0
     self.last_time = time.time()
+    self.starting_iteration = mpi.bcast_obj(self.starting_iteration)
 
     C, N, P = (self.num_channels, self.dictionary_size, self.convolution_time_length)
     T = self.patch_length

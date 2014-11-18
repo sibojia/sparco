@@ -40,7 +40,7 @@ class SparseCoder(object):
       The starting value for the adjustment constant of the basis
     """
     self.phi, self.eta = phi, eta
-    # for self.t, config in enumerate(self.configs):
+    self.start_index = mpi.bcast_obj(self.start_index)
     for self.t in range(self.start_index, len(self.configs)):
       config = self.configs[self.t]
       config['phi'], config['eta'] = self.phi, self.eta
