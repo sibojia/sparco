@@ -190,6 +190,9 @@ if mpi.rank == mpi.root:
     local_config_path = glob.glob(os.path.join(args.resume, '*.py'))[0]
   else:
     local_config_path = args.local_config_path
+else:
+  local_config_path = None
+  cli_config = None
 
 local_config_path = mpi.bcast_obj(local_config_path)
 cli_config = mpi.bcast_obj(cli_config)
@@ -203,13 +206,19 @@ config = pfacets.merge(defaults, local_config, cli_config)
 
 ########### DERIVED AND DYNAMIC DEFAULT PARAMETERS
 
-if args.resume is not None:
-  config['trace']['inner_output_directory'] = args.resume
+if mpi.rank != mpi.root:
+  outdir = None
 else:
-  default_inner_dir = "{0}_{1}".format(time.strftime('%y%m%d%H%M%S'), config['mode'])
-  config['trace']['inner_output_directory'] = os.path.join(
-      config['trace']['output_root'],
-      config['trace']['inner_output_directory'] or default_inner_dir)
+  if args.resume is not None:
+    outdir = args.resume
+  else:
+    default_inner_dir = "{0}_{1}".format(time.strftime('%y%m%d%H%M%S'), config['mode'])
+    outdir = os.path.join(
+        config['trace']['output_root'],
+        config['trace']['inner_output_directory'] or default_inner_dir)
+
+config['trace']['inner_output_directory'] = mpi.bcast_obj(outdir)
+
 
 config['trace']['SparseCoder']['config_key_function'] = config['trace']['config_key_function']
 
