@@ -240,21 +240,23 @@ def get_last_basis_snapshot(path):
       return last
   return None
 
-########### SAVE CONFIGURATION FOR FUTURE
-
 if config['trace']['enable']:
   pfacets.mkdir_p(config['trace']['inner_output_directory'])
-  logging.basicConfig(**config['trace']['log'])
-  if args.local_config_path:
-    shutil.copy(args.local_config_path, config['trace']['inner_output_directory'])
-  cli_config_path = os.path.join(config['trace']['inner_output_directory'],
-      'cli_config.json')
-  with open(cli_config_path, 'w') as f:
-    f.write(json.dumps(cli_config, sort_keys=True, indent=4, separators=(',', ': ')))
-  resources_config_path = os.path.join(config['trace']['inner_output_directory'],
-      'resources.txt')
-  with open(resources_config_path, 'w') as f:
-    f.write("cores {0}\nthreads{1}".format(args.cores, args.threads))
+
+  ########### SAVE CONFIGURATION FOR FUTURE
+
+  if mpi.rank == mpi.root:
+    logging.basicConfig(**config['trace']['log'])
+    if args.local_config_path:
+      shutil.copy(args.local_config_path, config['trace']['inner_output_directory'])
+    cli_config_path = os.path.join(config['trace']['inner_output_directory'],
+        'cli_config.json')
+    with open(cli_config_path, 'w') as f:
+      f.write(json.dumps(cli_config, sort_keys=True, indent=4, separators=(',', ': ')))
+    resources_config_path = os.path.join(config['trace']['inner_output_directory'],
+        'resources.txt')
+    with open(resources_config_path, 'w') as f:
+      f.write("cores {0}\nthreads{1}".format(args.cores, args.threads))
 
   # it will need to go through expansion again so we don't dump everything
 
