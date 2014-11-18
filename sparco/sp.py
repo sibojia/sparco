@@ -174,7 +174,7 @@ class Spikenet(object):
   # TODO use a decorator for time termination
   def run(self):
     """ Learn basis by alternative online minimization."""
-    for self.t in range(self.starting_iteration, self.num_iterations):
+    for self.t in range(self.starting_iteration, self.num_iterations+1):
       if not self.within_time_limit(): return
       self.iteration() 
 

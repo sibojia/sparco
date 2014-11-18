@@ -283,7 +283,7 @@ if mpi.rank == mpi.root:
     logging.info('resuming ladder/batch {0} @ iteration {1}...'.format(
       ladder_or_batch_index, iteration_number))
     config['nets'][ladder_or_batch_index]['starting_iteration'] = iteration_number
-    config['nets'][0]['phi'] = h5py.File(last_snapshot, 'r')['phi']
+    config['nets'][ladder_or_batch_index]['phi'] = h5py.File(last_snapshot, 'r')['phi']
   else:
     ladder_or_batch_index = 0
 else:
