@@ -59,6 +59,8 @@ class Spikenet(object):
     The data provider. Must respond to `get_patches` with a 3d numpy array.
   patches_per_iteration : int (optional)
     Number of patches to process in a single iteration.
+  starting_iteration : int (optional)
+    Starting value of the iteration counter. Useful when resuming a run.
   num_iterations : int (optional)
     Total number of iterations to carry out before terminating.
   run_time_limit : number (optional)
@@ -106,6 +108,7 @@ class Spikenet(object):
   defaults = {
       'sampler_settings': None,
       'patches_per_iteration': mpi.procs,
+      'starting_iteration': 0,
       'num_iterations': 100,
       'run_time_limit': float("inf"),
       'num_channels': None,
@@ -170,7 +173,7 @@ class Spikenet(object):
   # TODO use a decorator for time termination
   def run(self):
     """ Learn basis by alternative online minimization."""
-    for self.t in range(self.num_iterations):
+    for self.t in range(self.starting_iteration, self.num_iterations):
       if not self.within_time_limit(): return
       self.iteration() 
 

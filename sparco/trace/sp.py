@@ -79,7 +79,7 @@ class Tracer(traceutil.tracer.Tracer):
   # this stuff has to be implemneted here because I can't currently decorate
   # __init__ (since the tracer is applied AFTER object initialization)
   def t_run(tracer, orig, self, *args, **kwargs):
-    tracer.dump_state(os.path.join(tracer.output_path, 'config.txt'))
+    tracer.dump_state(os.path.join(tracer.output_path, 'config.json'))
     return orig(self, *args, **kwargs)
 
   def t_iteration(tracer, orig, self, *args, **kwargs):

@@ -13,7 +13,7 @@ class SparseCoder(object):
   configuration is used as the starting input to the next.
   """
 
-  def __init__(self, *spikenet_configs):
+  def __init__(self, spikenet_configs, start_index=0):
     """Set up configuration list.
     
     Parameters
@@ -21,8 +21,12 @@ class SparseCoder(object):
     spikenet_configs : tuple of dicts
       Each element of tuple should be a dict with keyword arguments for a
       `Spikenet#__init__`.
+    start_index : int
+      Index of the spikenet configuration from which execution should start.
+      Useful when resuming a stopped run.
     """
     self.configs = spikenet_configs
+    self.start_index = start_index
 
   # TODO is adjustment constant the right term here
   def run(self, phi=None, eta=.00001):
@@ -36,7 +40,9 @@ class SparseCoder(object):
       The starting value for the adjustment constant of the basis
     """
     self.phi, self.eta = phi, eta
-    for self.t, config in enumerate(self.configs):
+    # for self.t, config in enumerate(self.configs):
+    for self.t in range(self.start_index, len(self.configs)):
+      config = self.configs[self.t]
       config['phi'], config['eta'] = self.phi, self.eta
       self.iteration(config)
 

@@ -2,10 +2,14 @@
 
 import argparse
 import copy
-import os
+import glob
+import json
 import logging
-import time
+import os
+import re
+import shutil
 import sys
+import time
 
 import h5py
 
@@ -37,6 +41,8 @@ import sparco.trace
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('-b', '--basis-path',
     help='path to an hdf5 file holding an initial basis matrix in dataset "phi"')
+arg_parser.add_argument('--cores', default='unknown',
+    help='the number of cores being requested')
 arg_parser.add_argument('-c', '--channels',
     help='comma-separated string of channel ranges and individual values')
 arg_parser.add_argument('-C', '--local-config-path',
@@ -53,6 +59,10 @@ arg_parser.add_argument('--no-output', action='store_false', dest='output',
     help='do not write any output')
 arg_parser.add_argument('-o', '--output-root',
     help='path to directory containing output files')
+arg_parser.add_argument('--threads', default='unknown',
+    help='the number of threads being used per MPI process')
+arg_parser.add_argument('-r', '--resume',  # TODO needs implementation, perhaps dump readable config
+    help='path to directory with output files, will resume from here')
 arg_parser.add_argument('-s', '--snapshot-interval', default=100, type=int,
     help='number of iterations between basis snapshots')
 arg_parser.add_argument('-t', '--time-dimension', type=int,
@@ -171,17 +181,28 @@ cli_config = pfacets.map_object_to_dict(args, {
     'snapshot_interval': ['trace', 'RootSpikenet', 'snapshot_interval'],
     })
 
-local_config = pfacets.load_local_module(path=args.local_config_path,
-    default_name='.sparcorc').config or {}
 
+if args.resume is not None:
+  with open(os.path.join(args.resume, 'cli_config.json'), 'r') as f:
+    prev_cli_config = json.loads(f.read())
+    cli_config = pfacets.merge(prev_cli_config, cli_config)
+  local_config_path = glob.glob(os.path.join(args.resume, '*.py'))[0]
+else:
+  local_config_path = args.local_config_path
+
+local_config = pfacets.load_local_module(local_config_path,
+    default_name='.sparcorc').config or {}
 config = pfacets.merge(defaults, local_config, cli_config)
 
 ########### DERIVED AND DYNAMIC DEFAULT PARAMETERS
 
-default_inner_dir = "{0}_{1}".format(time.strftime('%y%m%d%H%M%S'), config['mode'])
-config['trace']['inner_output_directory'] = os.path.join(
-    config['trace']['output_root'],
-    config['trace']['inner_output_directory'] or default_inner_dir)
+if args.resume is not None:
+  config['trace']['inner_output_directory'] = args.resume
+else:
+  default_inner_dir = "{0}_{1}".format(time.strftime('%y%m%d%H%M%S'), config['mode'])
+  config['trace']['inner_output_directory'] = os.path.join(
+      config['trace']['output_root'],
+      config['trace']['inner_output_directory'] or default_inner_dir)
 
 config['trace']['SparseCoder']['config_key_function'] = config['trace']['config_key_function']
 
@@ -193,8 +214,8 @@ if isinstance(config['trace']['log']['level'], str):
 if len(config['nets']) == 0:
   config['nets'].append({})
 
-if args.basis_path is not None:
-  config['nets'][0]['phi'] = h5py.File(args.basis_path, 'r')['phi']
+# if args.basis_path not in [None, 'none']:  # TODO hack; need better way to optional pass cli args from csc.zsh
+#   config['nets'][0]['phi'] = h5py.File(args.basis_path, 'r')['phi']
 
 for c in config['nets']:
   c['sampler_settings'] = pfacets.merge(c.get('sampler_settings', {}), config['sampler'])
@@ -207,12 +228,53 @@ for c in config['nets']:
 # Run convolutional sparse coding using the defined configuration. Perform
 # logging configuration and directory setup if output is enabled.
 
+def get_last_basis_snapshot(path):
+  dirs = glob.glob(os.path.join(path, '*/'))
+  dirs = sorted(dirs,
+      key=lambda d: int(re.search(r'^\d+', os.path.basename(os.path.normpath(d))).group(0)))
+  lastdir = dirs[-1] if len(dirs) >= 1 else None
+  if lastdir is not None:
+    files = glob.glob(os.path.join(lastdir, '[0-9]*.h5'))
+    if len(files) >= 1:
+      last = max(files, key=lambda f: int(re.search(r'^\d+', os.path.basename(f)).group(0)))
+      return last
+  return None
+
+########### SAVE CONFIGURATION FOR FUTURE
+
 if config['trace']['enable']:
   pfacets.mkdir_p(config['trace']['inner_output_directory'])
   logging.basicConfig(**config['trace']['log'])
+  if args.local_config_path:
+    shutil.copy(args.local_config_path, config['trace']['inner_output_directory'])
+  cli_config_path = os.path.join(config['trace']['inner_output_directory'],
+      'cli_config.json')
+  with open(cli_config_path, 'w') as f:
+    f.write(json.dumps(cli_config, sort_keys=True, indent=4, separators=(',', ': ')))
+  resources_config_path = os.path.join(config['trace']['inner_output_directory'],
+      'resources.txt')
+  with open(resources_config_path, 'w') as f:
+    f.write("cores {0}\nthreads{1}".format(args.cores, args.threads))
+
+  # it will need to go through expansion again so we don't dump everything
+
+########### RESUME UNFINISHED JOB
+# bring configuration to state in line with drop-off point
+
+last_snapshot = get_last_basis_snapshot(
+  os.path.join(config['trace']['inner_output_directory']))
+if last_snapshot is not None:
+  ladder_or_batch_index = int(os.path.basename(os.path.dirname(last_snapshot)).split('_')[0])
+  iteration_number = int(os.path.basename(last_snapshot).split('.')[0]) + 1
+  logging.info('resuming ladder/batch {0} @ iteration {1}...'.format(
+    ladder_or_batch_index, iteration_number))
+  config['nets'][ladder_or_batch_index]['starting_iteration'] = iteration_number
+  config['nets'][0]['phi'] = h5py.File(last_snapshot, 'r')['phi']
+else:
+  ladder_or_batch_index = 0
 
 if config['mode'] == 'ladder':
-  sc = sparco.SparseCoder(*config['nets'])
+  sc = sparco.SparseCoder(config['nets'], start_index=ladder_or_batch_index)
   if config['trace']['enable']:
     traceutil.tracer.apply_tracer(sparco.trace.sparse_coder.Tracer,
         target=sc, RootSpikenet_config=config['trace']['RootSpikenet'],
