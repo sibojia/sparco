@@ -110,6 +110,8 @@ def time_row(data, buf=10):
     im[:,xs:xe] = tr[i]
   return im
 
+def time_gif_frame(data, buf=10)
+
 # # expects 16x32xt
 # def shank_plot(data)
 
@@ -194,6 +196,7 @@ for p in h5_paths:
         plt.savefig(sp, bbox_inches="tight", pad_inches=0, format='png')
         plt.clf()
       tp = os.path.join(odir, "{0}_timewise.png".format(i))
+      tpd = os.path.join(odir, "{0}_timewise_frames")
       if not osp.exists(tp):
         plt.figure()
         plt.axes(**plot_settings['axis'])
