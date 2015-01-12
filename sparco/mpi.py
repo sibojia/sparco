@@ -12,7 +12,3 @@ gather = MPI.COMM_WORLD.Gather
 reduce = MPI.COMM_WORLD.Reduce
 
 SUM = MPI.SUM
-
-import mpi4py.rc
-mpi4py.rc.profile('MPE', logfile='/Users/smackesey/tmp/cpilog')
-

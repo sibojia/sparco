@@ -22,7 +22,7 @@ def get_spikenet_parameters(config):
           'patch_length': config['patch_length'] }
   else:
     if re.search('.h5', config['input_path']):
-      f = h5py.File(f, 'r')
+      f = h5py.File(config['input_path'], 'r')
     else:
       f = h5py.File(glob.glob(os.path.join(config['input_path'], '*.h5'))[0], 'r')
     data = reduce(lambda a,k: a[k], config['hdf5_data_path'], f)

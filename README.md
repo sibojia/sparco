@@ -22,7 +22,7 @@ Given the presence of this script on the path, a call to `csc.py` might look lik
     ❯ csc.py -i /path/to/dir/with/my/h5/files -o /path/to/output/directory \
     -C /path/to/config/file
 
-The input path (`-i`), is expected to be a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. `-C` provides the path to a configuration file. Details on its format can be found below. `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
+The input path (`-i`), is expected to be either a single `.h5` file or a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. `-C` provides the path to a configuration file. Details on its format can be found below. `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
 
 Assuming `mpirun` is in `$PATH`, to run the code over mpi with, say, 4 processes:
 
@@ -39,7 +39,7 @@ A thorough understanding of how to configure the code is best gained by reading 
 
 ### Minimal Possible Configuration
 
-Virtually all parameters have default values that will enable the code to work. The minimal possible configuration specifies an `input_path` to the directory containing the data. This may be done on the command line or in a configuration file.
+Virtually all parameters have default values that will enable the code to work. The minimal possible configuration specifies an `input_path` to the directory or h5 file containing the data. This may be done on the command line or in a configuration file.
 
 ### Configuration File Structure
 

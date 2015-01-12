@@ -110,7 +110,7 @@ def time_row(data, buf=10):
     im[:,xs:xe] = tr[i]
   return im
 
-def time_gif_frame(data, buf=10)
+# def time_gif_frame(data, buf=10)
 
 # # expects 16x32xt
 # def shank_plot(data)
