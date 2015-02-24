@@ -2,27 +2,31 @@
 
 ## Installation
 
-This code depends on `numpy`, `h5py`, and `mpi4py`. The command-line steps below do not cover installation of these packages. One way to gain access to these packages is to install [the Anaconda distribution](http://continuum.io/downloads) of Python, which includes all of the above as well as many other packages useful in scientific computing.
+This code depends on the well-known `numpy`, `h5py`, and `mpi4py` packages. The command-line steps below do not cover installation of these packages. One way to gain access to them is to install [the Anaconda distribution](http://continuum.io/downloads) of Python, which includes all of the above as well as many other packages useful in scientific computing.
 
-One of the libraries used by this code must be linked against BLAS. If your `cblas.h` file is located in a nonstandard location, then you must set the environment variable BLASPATH to the directory containing `cblas.h` before installation.
+`sparco` also depends on a number of smaller packages: `pfacets`, `traceutil`, and `quasinewton`. These are included as git submodules, because this code may need to be installed on systems where the user is not able to install packages globally. The use of `git clone --recursive` will ensure they are installed.
+
+`quasinewton` must be linked against BLAS. If your `cblas.h` file is located in a nonstandard location, then you must set the environment variable BLASPATH to the directory containing `cblas.h` before installation.
 
     git clone --recursive https://github.com/smackesey/sparco
     export BLASPATH=/path/to/my/dir/containing/cblas.h  # optional
     cd sparco/lib/quasinewton
     python setup.py build_ext --inplace
 
-The `--recursive` option is used because dependency packages `pfacets`, `traceutil`, and `quasinewton` have been included as git submodules. This is because this code may be run on systems where the user is not able to install packages globally.
-
 ## Usage
 
-The codebase has been designed to support the calling of CSC in multiple contexts, allowing the ability to include CSC as part of a larger data-processing pipeline. However, a default entry point for the code is provided by the `csc` script. This script allows convolutional sparse coding to be carried out (with flexible configuration) on a single dataset. The dataset is provided as one or more h5 files, all storing a main data matrix at the same location. The script is configured using command line options and/or a local configuration file.
+The codebase has been designed to support the calling of CSC in multiple contexts, allowing the ability to include CSC as part of a larger data-processing pipeline. However, a default entry point for the code is provided by the `csc` script. This script allows the setting of hyperparameters, input dataset location, and output location. The dataset should be provided as one or more h5 files, all storing a main data matrix at the same path. The script is configured using command line options and/or a local configuration file.
 
 Given the presence of this script on the path, a call to `csc.py` might look like:
 
-    ❯ csc.py -i /path/to/dir/with/my/h5/files -o /path/to/output/directory \
-    -C /path/to/config/file
+    ❯ csc.py \
+    --input-path /path/to/dir/with/my/h5/files \
+    --output-root /path/to/output/directory \
+    --local-config-path /path/to/config/file
 
-The input path (`-i`), is expected to be either a single `.h5` file or a directory containing one or more `.h5` files at the top level. The output path (`-o`) can be an arbitrary directory. All directories in the output path that do not already exist will be arbitrarily created. `-C` provides the path to a configuration file. Details on its format can be found below. `csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix).
+The input path is expected to be either a single `.h5` file or a directory containing one or more `.h5` files at the top level. The output path can be an arbitrary directory. All directories in the output path that do not already exist will be created. The local config file is used to set hyperparameters and other settings. In general, anything configurable can be set in the local config file, while some can be set via command line options. `csc.py` will merge the settings defined in both places, with command line settings taking precedence over config file settings. Details on the config file format can be found below.
+
+`csc` will run until it has hit the configured number of iterations. As of yet, there is no way to quit cleanly-- a kill/interrupt signal must be used (Ctrl-C on Unix). Snapshots of the dictionary are periodically written (the inter-write interval is configurable) to the output directory.
 
 Assuming `mpirun` is in `$PATH`, to run the code over mpi with, say, 4 processes:
 
@@ -35,7 +39,7 @@ All configuration parameters may be specified using a local configuration file. 
 A thorough understanding of how to configure the code is best gained by reading two sources:
 
 - the output of `csc.py --help`, which provides a description of all available command line options. (The same information is available in the `ArgParse` specification of the `csc.py` source)
-- the sample configuration file `sample_config.py`. For convenience, this file contains specifications for all possible parameters as well as their corresponding documentation. In practice, it is not necessary to specify so many parameters for most use cases, since the defaults are sufficient.
+- the sample configuration file `sample_config.py`. For convenience, this file contains specifications for all possible settings as well as their corresponding documentation. In practice, it is not necessary to specify so many parameters for most use cases, since the defaults are sufficient.
 
 ### Minimal Possible Configuration
 
