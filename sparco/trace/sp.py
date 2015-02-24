@@ -70,7 +70,6 @@ class Tracer(traceutil.tracer.Tracer):
     h5.create_dataset('l1', data=self.target.rootbufs.a_l1_norm)
     h5.create_dataset('l2', data=self.target.rootbufs.a_l2_norm)
     h5.close()
-    pfacets.symlink_f(path, os.path.join(self.output_path, 'basis.h5'))
 
   ###################################
   ########### CUSTOM DECORATORS
