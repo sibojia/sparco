@@ -1,6 +1,7 @@
 [submodule "lib/quasinewton"]
 	path = lib/quasinewton
 	url = https://github.com/smackesey/quasinewton
+	branch = master
 [submodule "lib/pfacets"]
 	path = lib/pfacets
 	url = https://github.com/smackesey/pfacets
